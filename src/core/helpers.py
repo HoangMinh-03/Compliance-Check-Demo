@@ -228,3 +228,46 @@ def check_logic_smaller(val1: Any, val2: Any) -> Tuple[bool, str]:
         return False, f"Giá trị '{val1}' không nhỏ hơn '{val2}'"
     except (ValueError, TypeError):
         return False, f"Không thể so sánh nhỏ hơn giữa '{val1}' và '{val2}'"
+
+@registry.register(description="Kiểm tra ngày 1 phải TRƯỚC ngày 2.")
+def check_date_before(date1: str, date2: str, date_format: str = "%d-%m-%Y") -> Tuple[bool, str]:
+    try:
+        clean_format = str(date_format).replace('format=', '').strip('"\'')
+        d1 = datetime.strptime(str(date1), clean_format)
+        d2 = datetime.strptime(str(date2), clean_format)
+        if d1 < d2:
+            return True, ""
+        return False, f"Ngày '{date1}' không trước ngày '{date2}'"
+    except (ValueError, TypeError):
+        return False, f"Lỗi định dạng ngày khi so sánh '{date1}' và '{date2}'"
+
+@registry.register(description="Kiểm tra ngày 1 phải SAU ngày 2.")
+def check_date_after(date1: str, date2: str, date_format: str = "%d-%m-%Y") -> Tuple[bool, str]:
+    try:
+        clean_format = str(date_format).replace('format=', '').strip('"\'')
+        d1 = datetime.strptime(str(date1), clean_format)
+        d2 = datetime.strptime(str(date2), clean_format)
+        if d1 > d2:
+            return True, ""
+        return False, f"Ngày '{date1}' không sau ngày '{date2}'"
+    except (ValueError, TypeError):
+        return False, f"Lỗi định dạng ngày khi so sánh '{date1}' và '{date2}'"
+
+@registry.register(description="Kiểm tra CCCD Việt Nam (12 số, đúng mã tỉnh).")
+def check_cccd_vn(value: str) -> Tuple[bool, str]:
+    # 12 chữ số
+    val = str(value).strip()
+    if not re.match(r"^\d{12}$", val):
+        return False, "CCCD phải bao gồm chính xác 12 chữ số"
+    
+    # Mã tỉnh thành (3 số đầu): 001 -> 096
+    # Danh sách mã tỉnh thực tế (có thể có một số số không dùng nhưng nằm trong dải 001-096)
+    valid_provinces = {
+        "001", "002", "004", "006", "008", "010", "011", "012", "014", "015", "017", "019", "020", "022", "024", "025", "026", "027", "030", "031", "033", "034", "035", "036", "037", "038", "040", "042", "044", "045", "046", "048", "049", "051", "052", "054", "056", "058", "060", "062", "064", "066", "067", "068", "070", "072", "074", "075", "077", "079", "080", "082", "083", "084", "086", "087", "089", "091", "092", "093", "094", "095", "096"
+    }
+    
+    province_code = val[:3]
+    if province_code not in valid_provinces:
+        return False, f"Mã tỉnh '{province_code}' không hợp lệ trên CCCD"
+        
+    return True, ""

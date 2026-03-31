@@ -5,3 +5,6 @@ __pycache__/
 .env
 temp_uploads/
 storage/plans/*.json
+test/
+docs/
+project_2.0.txt

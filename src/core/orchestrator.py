@@ -22,7 +22,7 @@ def split_args(args_str: str) -> List[str]:
     if current_arg: args.append("".join(current_arg).strip())
     return args
 
-def resolve_arg(arg: Any, data_dict: Dict[str, str]) -> Any:
+def resolve_arg(arg: Any, data_dict: Dict[str, str], mapping: Optional[Dict[str, str]] = None) -> Any:
     if isinstance(arg, dict):
         if arg.get("type") == "expression" or "value" in arg:
             arg = arg.get("value")
@@ -32,17 +32,25 @@ def resolve_arg(arg: Any, data_dict: Dict[str, str]) -> Any:
     if not isinstance(arg, str): return arg
     arg_stripped = arg.strip()
     
+    # Handle recursive function calls in expressions
     match = re.match(r"^(\w+)\((.*)\)$", arg_stripped)
     if match:
         func_name = match.group(1)
         inner_args_str = match.group(2)
         helper_func = registry.get_helper(func_name)
         if helper_func:
-            inner_args = [resolve_arg(a, data_dict) for a in split_args(inner_args_str)]
+            inner_args = [resolve_arg(a, data_dict, mapping) for a in split_args(inner_args_str)]
             result = helper_func(*inner_args)
             if isinstance(result, tuple) and len(result) == 2: return result[0] 
             return result
             
+    # NEW: Try resolving through mapping first (Rule Space -> Data Space)
+    if mapping and arg_stripped in mapping and mapping[arg_stripped]:
+        mapped_field = mapping[arg_stripped]
+        if mapped_field in data_dict:
+            return data_dict[mapped_field]
+
+    # Try resolving directly from data_dict (Data Space)
     if arg_stripped in data_dict: return data_dict[arg_stripped]
     
     if arg_stripped == "current_date":
@@ -67,7 +75,7 @@ def parse_rule_string(rule_str: str) -> Optional[Dict[str, Any]]:
             except: args.append(p)
     return {"function": func_name, "args": args}
 
-def run_compliance_check(data_dict: Dict[str, str], rule_map: Any) -> Tuple[bool, List[str]]:
+def run_compliance_check(data_dict: Dict[str, str], rule_map: Any, mapping: Optional[Dict[str, str]] = None) -> Tuple[bool, List[str]]:
     all_pass = True
     results = []
 
@@ -86,20 +94,40 @@ def run_compliance_check(data_dict: Dict[str, str], rule_map: Any) -> Tuple[bool
         return False, ["ERROR: Định dạng Execution Plan không hợp lệ."]
 
     for field, rules in normalized_rules.items():
-        actual_field = field
-        if field not in data_dict:
-            found = False
-            for f in data_dict.keys():
-                if f.lower() == field.lower():
-                    actual_field = f
-                    found = True
-                    break
-            if not found:
-                results.append(f"MISSING_FIELD: '{field}'")
+        # Resolve actual field name using mapping
+        # Ensure mapping_value is stripped of whitespace
+        mapping_value = mapping.get(field, field) if mapping else field
+        if isinstance(mapping_value, str): mapping_value = mapping_value.strip()
+        
+        # Check if mapping_value is a function call or expression
+        if mapping_value and "(" in mapping_value and ")" in mapping_value:
+            try:
+                value = resolve_arg(mapping_value, data_dict, mapping)
+            except Exception as e:
+                results.append(f"CALCULATION_ERROR: Lỗi tính toán trường '{field}' từ biểu thức '{mapping_value}': {e}")
                 all_pass = False
                 continue
+        else:
+            actual_field = mapping_value if mapping_value else field
+            
+            # Robust matching: Direct check first
+            if actual_field not in data_dict:
+                # Try stripping and case-insensitive
+                found = False
+                target = actual_field.strip().lower()
+                for f in data_dict.keys():
+                    if f.strip().lower() == target:
+                        actual_field = f
+                        found = True
+                        break
                 
-        value = data_dict[actual_field]
+                if not found:
+                    results.append(f"MISSING_FIELD: '{actual_field}' (mapped from '{field}')" if mapping and field in mapping else f"MISSING_FIELD: '{field}'")
+                    all_pass = False
+                    continue
+            
+            value = data_dict[actual_field]
+                
         for rule_item in rules:
             rule_obj = rule_item
             if isinstance(rule_item, str):
@@ -120,7 +148,7 @@ def run_compliance_check(data_dict: Dict[str, str], rule_map: Any) -> Tuple[bool
                 continue
                 
             try:
-                resolved_args = [resolve_arg(a, data_dict) for a in args]
+                resolved_args = [resolve_arg(a, data_dict, mapping) for a in args]
                 
                 # THÔNG MINH: Kiểm tra chữ ký hàm để quyết định có chèn 'value' hay không
                 sig = inspect.signature(helper_func)

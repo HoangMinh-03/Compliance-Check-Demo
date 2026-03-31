@@ -105,3 +105,18 @@ def test_new_format_helpers():
     assert check_currency_format("1.000.000 VND")[0] is True
     assert check_currency_format("500.000đ")[0] is True
     assert check_currency_format("abc")[0] is False
+
+    # Date comparison
+    from src.core.helpers import check_date_before, check_date_after
+    assert check_date_before("01-01-2020", "02-01-2020")[0] is True
+    assert check_date_before("02-01-2020", "01-01-2020")[0] is False
+    assert check_date_after("02-01-2020", "01-01-2020")[0] is True
+    assert check_date_after("01-01-2020", "02-01-2020")[0] is False
+
+    # CCCD VN
+    from src.core.helpers import check_cccd_vn
+    assert check_cccd_vn("001099123456")[0] is True # HN
+    assert check_cccd_vn("079099123456")[0] is True # HCM
+    assert check_cccd_vn("999099123456")[0] is False # Invalid province
+    assert check_cccd_vn("001abc123456")[0] is False # Not numeric
+    assert check_cccd_vn("001099")[0] is False # Wrong length

@@ -24,33 +24,28 @@ def clean_json_content(content: str) -> str:
     if code_block_match: content = code_block_match.group(1).strip()
     return content
 
-async def translate_rules(rules_text: str, available_fields: Optional[List[str]] = None) -> Optional[Dict[str, List[Any]]]:
+async def translate_rules(rules_text: str) -> Optional[Dict[str, List[Any]]]:
     """
-    Sử dụng LLM để dịch rules văn bản sang Execution Plan (JSON) theo định dạng gốc.
+    Sử dụng LLM để dịch rules văn bản sang Execution Plan (JSON).
+    Tên trường (keys) được trích xuất trực tiếp từ văn bản quy tắc.
     """
     helpers_list = registry.get_llm_metadata()
 
     system_prompt = (
         "Bạn là một Chuyên gia Logic học và Kỹ sư Kiểm thử Dữ liệu.\n"
-        "Nhiệm vụ của bạn là phân tích các quy tắc văn bản và chuyển đổi chúng thành Execution Plan (JSON).\n"
+        "Nhiệm vụ: Phân tích quy tắc văn bản và chuyển đổi thành Execution Plan (JSON).\n"
         "\n"
-        "QUY TẮC NGHIÊM NGẶT:\n"
-        "1. TUYỆT ĐỐI KHÔNG sử dụng cú pháp Python: 'if', 'else', 'ternary operators', 'index [0]', 'index [1]'.\n"
-        "2. CHỈ sử dụng các hàm helper được cung cấp.\n"
-        "3. ĐỐI VỚI LOGIC ĐIỀU KIỆN (Nếu-Thì): Sử dụng hàm 'check_if(condition, helper_result)'.\n"
-        "   Ví dụ: Nếu tuổi < 18 thì Người giám hộ không được trống:\n"
-        "   \"Người giám hộ\": [\"check_if(check_logic_smaller(calculate_age(Ngày sinh), 18), check_not_empty)\"]\n"
-        "4. CÁC HÀM TRẢ VỀ TUPLE (is_valid, msg) sẽ được Orchestrator tự động lấy giá trị boolean khi dùng làm tham số cho hàm khác. Bạn KHÔNG cần ghi [0].\n"
-        "5. CHỈ tạo quy tắc cho các trường được nhắc đến TRỰC TIẾP trong <rules_text>.\n"
+        "QUY TẮC:\n"
+        "1. Tên trường (keys trong JSON) phải lấy TRỰC TIẾP từ <rules_text>.\n"
+        "2. TUYỆT ĐỐI KHÔNG sử dụng cú pháp Python (if, else, ...).\n"
+        "3. CHỈ sử dụng các hàm helper được cung cấp.\n"
+        "4. Logic điều kiện dùng: 'check_if(condition, helper_result)'.\n"
         "\n"
-        "Yêu cầu: Output cuối cùng là JSON nằm trong thẻ <output>.\n"
-        "Cấu trúc: {\"field_name\": [\"function_name(args)\", ...]}"
+        "Yêu cầu: Output JSON trong thẻ <output>.\n"
+        "Cấu trúc: {\"tên_trường_từ_luật\": [\"function_name(args)\", ...]}"
     )
 
-    fields_info = f"<available_fields> {', '.join(available_fields)} </available_fields>" if available_fields else ""
-    
     user_prompt = f"""
-{fields_info}
 <helper_functions> 
 {helpers_list} 
 </helper_functions>
@@ -129,27 +124,88 @@ Trích xuất dữ liệu và trả về JSON trong thẻ <output>:"""
 
 async def translate_rule_for_field(rule_text: str, field_name: str, selected_helpers: List[str]) -> Optional[List[Dict[str, Any]]]:
     """Dịch lẻ từng field (giữ lại để hỗ trợ Update v1.5 tương lai)"""
-    helpers_info = ""
-    for h in selected_helpers:
-        helper_func = registry.get_helper(h)
-        if helper_func:
-            import inspect
-            sig = inspect.signature(helper_func)
-            desc = registry.metadata.get(h, "")
-            helpers_info += f"- {h}{sig}: {desc}\n"
+    return None
+
+async def map_data_to_plan(required_fields: List[str], data_keys: List[str]) -> Optional[Dict[str, str]]:
+    """
+    Nhiệm vụ: Ánh xạ danh sách 'trường yêu cầu' (từ luật) sang 'trường dữ liệu thực tế' (từ file).
+    Trả về JSON object: {"trường_yêu_cầu": "trường_thực_tế"}.
+    """
+    system_prompt = (
+        "Bạn là một Chuyên gia Ánh xạ Dữ liệu.\n"
+        "Nhiệm vụ: Ánh xạ danh sách 'trường yêu cầu' (từ luật) sang 'trường dữ liệu thực tế' (từ file).\n"
+        "QUY TẮC:\n"
+        "1. Trả về JSON object: {\"trường_yêu_cầu\": \"trường_thực_tế\"}.\n"
+        "2. Nếu không tìm thấy trường tương ứng rõ ràng, hãy để giá trị là \"\".\n"
+        "3. CHỈ trả về JSON trong thẻ <output>."
+    )
     
-    system_prompt = "Bạn là Chuyên gia Logic. Dịch quy tắc thành JSON list các hàm."
-    user_prompt = f"Trường: {field_name}\nQuy tắc: {rule_text}\nHelpers:\n{helpers_info}\nOutput JSON list in <output>."
+    user_prompt = f"""
+<required_fields>
+{', '.join(required_fields)}
+</required_fields>
+
+<available_data_keys>
+{', '.join(data_keys)}
+</available_data_keys>
+
+Hãy thực hiện ánh xạ và trả về JSON trong thẻ <output>:"""
 
     try:
         response = await client.chat.completions.create(
             model=LLM_MODEL,
-            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
             temperature=0.0
         )
         content = response.choices[0].message.content.strip()
         cleaned = clean_json_content(content)
+        if not cleaned: return None
         return json.loads(cleaned)
     except Exception as e:
-        logger.error(f"Error field translation: {e}")
+        logger.error(f"Lỗi ánh xạ dữ liệu: {e}")
+        return None
+
+async def generate_calculation_logic(target_field: str, data_keys: List[str], instruction: str) -> Optional[str]:
+    """
+    Sử dụng LLM để tạo ra một lời gọi hàm helper nhằm tính toán giá trị cho một trường.
+    Ví dụ: "Tính tuổi từ năm_sinh" -> "calculate_age(năm_sinh)"
+    """
+    helpers_list = registry.get_llm_metadata()
+    
+    system_prompt = (
+        "Bạn là một Chuyên gia Logic Dữ liệu.\n"
+        "Nhiệm vụ: Tạo MỘT lời gọi hàm helper duy nhất để tính toán giá trị cho trường yêu cầu.\n"
+        "QUY TẮC:\n"
+        "1. CHỈ sử dụng các hàm helper được cung cấp.\n"
+        "2. Sử dụng tên trường từ danh sách <available_data_keys>.\n"
+        "3. Output CHỈ là chuỗi lời gọi hàm, không giải thích.\n"
+        "Ví dụ: calculate_age(extract_year(ngay_sinh))\n"
+        "Nếu không thể tạo logic, trả về 'ERROR'."
+    )
+    
+    user_prompt = f"""
+Trường mục tiêu: {target_field}
+Dữ liệu có sẵn: {', '.join(data_keys)}
+Yêu cầu của người dùng: {instruction}
+
+Helper functions:
+{helpers_list}
+
+Logic tính toán:"""
+
+    try:
+        response = await client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.0
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f"Lỗi tạo logic tính toán: {e}")
         return None

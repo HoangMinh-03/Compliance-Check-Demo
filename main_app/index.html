@@ -195,12 +195,16 @@
                                 </svg>
                             </div>
                             Kết quả kiểm tra
-                            <select id="savedPlansSelect"
-                                class="ml-auto mr-2 bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all cursor-pointer">
-                                <option value="">-- Chọn mẫu đã lưu --</option>
-                            </select>
+                            <div class="ml-auto flex items-center gap-2">
+                                <select id="savedPlansSelect"
+                                    class="bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all cursor-pointer">
+                                    <option value="">-- Chọn mẫu đã lưu --</option>
+                                </select>
+                                <button id="loadPlanBtn" class="px-3 py-1 bg-primary/20 hover:bg-primary/30 border border-primary/30 rounded-lg text-[10px] font-semibold text-primary transition-all">Tải & Xem</button>
+                                <button id="runCheckBtn" class="px-3 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-600/30 rounded-lg text-[10px] font-semibold text-emerald-400 transition-all hidden">Chạy kiểm tra</button>
+                            </div>
                             <span id="statusBadge"
-                                class="ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-white/5 text-muted-foreground">Chờ
+                                class="ml-4 text-xs font-medium px-2.5 py-1 rounded-full bg-white/5 text-muted-foreground">Chờ
                                 dữ liệu</span>
                         </h2>
                     </div>
@@ -218,6 +222,33 @@
                         <p class="font-medium text-lg text-foreground/70">Chưa có kết quả</p>
                         <p class="text-sm opacity-60 mt-1">Gửi dữ liệu để nhận phản hồi</p>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Ánh xạ Dữ liệu -->
+        <div id="mappingModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+            <div class="relative w-full max-w-2xl bg-card border border-white/10 rounded-3xl shadow-2xl shadow-black overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="p-6 border-b border-white/[0.05] bg-white/[0.02] flex items-center justify-between">
+                    <h2 class="text-lg font-semibold flex items-center gap-2.5 text-foreground/90">
+                        <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M13 5h8"></path><path d="M13 12h8"></path><path d="M13 19h8"></path><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path></svg>
+                        </div>
+                        Ánh xạ Dữ liệu (Mapping)
+                    </h2>
+                    <button id="closeMappingModalBtn" class="p-2 rounded-lg hover:bg-white/5 text-muted-foreground transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto flex-1">
+                    <p class="text-xs text-muted-foreground mb-4">Ghép các trường yêu cầu từ luật với các trường thực tế trong dữ liệu của bạn.</p>
+                    <div id="mappingContainer" class="flex flex-col gap-3">
+                        <!-- Mapping rows will be rendered here -->
+                    </div>
+                </div>
+                <div class="p-6 border-t border-white/[0.05] bg-white/[0.02] flex gap-3">
+                    <button id="confirmMappingBtn" class="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg font-semibold transition-all shadow-lg shadow-primary/20">Xác nhận & Chạy</button>
                 </div>
             </div>
         </div>
@@ -242,322 +273,14 @@
                     <textarea id="planEditor" class="w-full h-80 bg-black/40 border border-white/10 rounded-xl p-4 font-mono text-xs text-emerald-400 focus:outline-none focus:ring-1 focus:ring-primary/50 mb-2"></textarea>
                 </div>
                 <div class="p-6 border-t border-white/[0.05] bg-white/[0.02] flex gap-3">
-                    <button id="savePlanBtn" class="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium transition-all text-foreground/80">Lưu mẫu</button>
-                    <button id="approveBtn" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold transition-all shadow-lg shadow-emerald-900/20">Phê duyệt & Chạy</button>
+                    <button id="savePlanAsBtn" class="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium transition-all text-foreground/80">Lưu thành mẫu mới</button>
+                    <button id="proceedToMappingBtn" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold transition-all shadow-lg shadow-emerald-900/20">Tiếp tục Ánh xạ Dữ liệu</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        const sendButton = document.getElementById('sendButton');
-        const rulesContent = document.getElementById('rulesContent');
-        const resultBody = document.getElementById('resultBody');
-        const statusBadge = document.getElementById('statusBadge');
-        const statusIcon = document.getElementById('statusIcon');
-        const buttonText = document.getElementById('buttonText');
-        const buttonIcon = document.getElementById('buttonIcon');
-
-        // File upload elements
-        const uploadRulesBtn = document.getElementById('uploadRulesBtn');
-        const rulesFileInput = document.getElementById('rulesFileInput');
-        const uploadDataBtn = document.getElementById('uploadDataBtn');
-        const dataFileInput = document.getElementById('dataFileInput');
-        const savedPlansSelect = document.getElementById('savedPlansSelect');
-        const addFieldBtn = document.getElementById('addFieldBtn');
-        const dataFieldsContainer = document.getElementById('dataFields');
-
-        // Modal elements
-        const approvalModal = document.getElementById('approvalModal');
-        const closeModalBtn = document.getElementById('closeModalBtn');
-        const planEditor = document.getElementById('planEditor');
-        const approveBtn = document.getElementById('approveBtn');
-        const savePlanBtn = document.getElementById('savePlanBtn');
-
-        let currentPlan = null;
-
-        // --- Init Default Fields ---
-        const defaultFields = {
-            "": "",
-        };
-        fillDataFields(defaultFields);
-
-        // --- UI Helper Functions ---
-        function createDataRow(key, value) {
-            const index = dataFieldsContainer.children.length + 1;
-            const row = document.createElement('div');
-            row.className = 'grid grid-cols-[1fr,1fr,40px] gap-3 group relative data-row items-center';
-            row.innerHTML = `
-                <div class="absolute -left-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity">${index.toString().padStart(2, '0')}</div>
-                <input placeholder="Tên trường..." class="field-key w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50 transition-all" value="${key}">
-                <input placeholder="Giá trị..." class="field-value w-full bg-background border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50 transition-all" value="${value}">
-                <button class="remove-row-btn p-1.5 rounded-lg hover:bg-rose-500/10 text-rose-500/50 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100" title="Xóa trường này">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                </button>
-            `;
-
-            row.querySelector('.remove-row-btn').addEventListener('click', () => {
-                row.remove();
-                updateRowIndices();
-            });
-
-            return row;
-        }
-
-        function updateRowIndices() {
-            document.querySelectorAll('.data-row').forEach((r, i) => {
-                const idxDiv = r.querySelector('div');
-                if (idxDiv) idxDiv.innerText = (i + 1).toString().padStart(2, '0');
-            });
-        }
-
-        function fillDataFields(data) {
-            dataFieldsContainer.innerHTML = '';
-            Object.entries(data).forEach(([key, value]) => {
-                dataFieldsContainer.appendChild(createDataRow(key, value));
-            });
-        }
-
-        // --- Event Listeners ---
-        addFieldBtn.addEventListener('click', () => {
-            dataFieldsContainer.appendChild(createDataRow("", ""));
-        });
-
-        closeModalBtn.addEventListener('click', () => {
-            approvalModal.classList.add('hidden');
-        });
-
-        approveBtn.addEventListener('click', () => {
-            try {
-                const editedPlan = JSON.parse(planEditor.value);
-                approvalModal.classList.add('hidden');
-                executeFinalCheck(editedPlan);
-            } catch (e) {
-                alert('JSON không hợp lệ. Vui lòng kiểm tra lại.');
-            }
-        });
-
-        savePlanBtn.addEventListener('click', async () => {
-            const name = prompt('Nhập tên để lưu kế hoạch này:');
-            if (!name) return;
-            try {
-                const planToSave = JSON.parse(planEditor.value);
-                const resp = await fetch('/plans/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, plan: planToSave })
-                });
-                if ((await resp.json()).success) alert('Đã lưu!');
-            } catch (e) { alert('Lỗi khi lưu.'); }
-        });
-
-        async function fetchSavedPlans() {
-            try {
-                const response = await fetch('/plans');
-                const result = await response.json();
-                if (result.success) {
-                    savedPlansSelect.innerHTML = '<option value="">-- Chọn mẫu đã lưu --</option>';
-                    result.plans.forEach(planName => {
-                        const option = document.createElement('option');
-                        option.value = planName;
-                        option.textContent = planName;
-                        savedPlansSelect.appendChild(option);
-                    });
-                }
-            } catch (error) { console.error('Failed to fetch plans:', error); }
-        }
-        fetchSavedPlans();
-
-        savedPlansSelect.addEventListener('change', async (e) => {
-            const planName = e.target.value;
-            if (!planName) return;
-            try {
-                const response = await fetch(`/plans/${planName}`);
-                const result = await response.json();
-                if (result.success) {
-                    currentPlan = result.plan;
-                    displayPlanForApproval(result.plan);
-                } else { alert(result.error); }
-            } catch (error) { console.error('Failed to load plan:', error); }
-        });
-
-        uploadRulesBtn.addEventListener('click', () => rulesFileInput.click());
-        rulesFileInput.addEventListener('change', (e) => handleFileUpload(e, rulesContent));
-
-        uploadDataBtn.addEventListener('click', () => dataFileInput.click());
-        dataFileInput.addEventListener('change', (e) => handleDataUpload(e));
-
-        // --- Handler Functions ---
-        async function handleFileUpload(event, targetElement) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const formData = new FormData();
-            formData.append('file', file);
-            try {
-                const response = await fetch('/upload', { method: 'POST', body: formData });
-                const result = await response.json();
-                if (result.success) targetElement.value = result.content;
-                else alert(result.error);
-            } catch (error) { alert('Lỗi khi upload file.'); }
-        }
-
-        async function handleDataUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (file.name.endsWith('.json')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        fillDataFields(data);
-                    } catch (err) { alert('File JSON không hợp lệ.'); }
-                };
-                reader.readAsText(file);
-            } else {
-                const formData = new FormData();
-                formData.append('file', file);
-                setLoading(true, 'Đang trích xuất dữ liệu...', false);
-                try {
-                    const uploadResp = await fetch('/upload', { method: 'POST', body: formData });
-                    const uploadResult = await uploadResp.json();
-                    if (uploadResult.success) {
-                        const currentFields = [];
-                        document.querySelectorAll('.field-key').forEach(input => {
-                            if (input.value.trim()) currentFields.push(input.value.trim());
-                        });
-                        const extractResp = await fetch('/extract-data', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ text: uploadResult.content, fields: currentFields })
-                        });
-                        const extractResult = await extractResp.json();
-                        if (extractResult.success) {
-                            fillDataFields(extractResult.data);
-                            statusBadge.innerText = 'Đã trích xuất xong';
-                        } else alert(extractResult.error);
-                    } else alert(uploadResult.error);
-                } catch (error) { alert('Lỗi khi trích xuất dữ liệu.'); } finally { setLoading(false); }
-            }
-        }
-
-        sendButton.addEventListener('click', async () => {
-            const content = rulesContent.value.trim();
-            if (!content) { alert('Vui lòng nhập nội dung quy tắc!'); return; }
-            const data = getFieldData();
-            const available_fields = Object.keys(data);
-            setLoading(true, 'LLM đang phân tích...', true);
-            try {
-                const response = await fetch('/generate-plan', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rules: content, available_fields }),
-                });
-                const result = await response.json();
-                if (result.success) {
-                    currentPlan = result.plan;
-                    displayPlanForApproval(result.plan);
-                } else displayError(result.error);
-            } catch (error) { displayError('Lỗi kết nối server.'); } finally { setLoading(false); }
-        });
-
-        function getFieldData() {
-            const data = {};
-            document.querySelectorAll('.data-row').forEach(row => {
-                const key = row.querySelector('.field-key').value.trim();
-                const value = row.querySelector('.field-value').value.trim();
-                if (key) data[key] = value;
-            });
-            return data;
-        }
-
-        function setLoading(isLoading, text = 'Đang xử lý...', updateResultBody = true) {
-            sendButton.disabled = isLoading;
-            buttonText.innerText = isLoading ? 'Đang xử lý...' : 'Trích xuất luật';
-            if (isLoading) {
-                statusBadge.innerText = 'Đang xử lý...';
-                if (updateResultBody) {
-                    setResultLoading(text);
-                }
-            }
-        }
-
-        function setResultLoading(text) {
-            resultBody.innerHTML = `
-                <div class="flex flex-col items-center">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-                    <p class="text-foreground/70">${text}</p>
-                </div>
-            `;
-        }
-
-        function displayPlanForApproval(plan) {
-            statusBadge.innerText = 'Chờ phê duyệt';
-            statusBadge.className = 'ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-400';
-            planEditor.value = JSON.stringify(plan, null, 2);
-            approvalModal.classList.remove('hidden');
-        }
-
-        async function executeFinalCheck(plan) {
-            const data = getFieldData();
-            setLoading(true, 'Đang thực thi kiểm tra...', true);
-            try {
-                const response = await fetch('/execute', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ data, execution_plan: plan }),
-                });
-                const result = await response.json();
-                if (result.success) displayFinalResult(result, plan);
-                else displayError(result.error);
-            } catch (error) { displayError('Lỗi kết nối.'); } finally { setLoading(false); }
-        }
-
-        function displayFinalResult(result, plan) {
-            const { is_valid, results } = result;
-            if (is_valid) {
-                statusBadge.innerText = 'Hợp lệ';
-                statusBadge.className = 'ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400';
-                statusIcon.className = 'p-2 rounded-lg bg-emerald-500/20 text-emerald-400 transition-colors duration-500';
-            } else {
-                statusBadge.innerText = 'Không hợp lệ';
-                statusBadge.className = 'ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400';
-                statusIcon.className = 'p-2 rounded-lg bg-rose-500/20 text-rose-400 transition-colors duration-500';
-            }
-            let resultsHtml = results.length === 0 && is_valid
-                ? `<div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-4">Tất cả quy tắc đều thỏa mãn!</div>`
-                : results.map(res => {
-                    const isError = res.startsWith('INVALID') || res.includes('ERROR') || res.startsWith('MISSING');
-                    const colorClass = isError ? 'text-rose-400 bg-rose-500/10 border-rose-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
-                    return `<div class="p-3 rounded-lg border ${colorClass} text-sm font-mono mb-2">${res}</div>`;
-                }).join('');
-            resultBody.innerHTML = `
-                <div class="w-full">
-                    <div class="mb-6">
-                        <h3 class="text-sm font-semibold text-foreground/80 mb-3 flex items-center gap-2">
-                            <div class="w-1 h-4 bg-primary rounded-full"></div> Kết quả chi tiết
-                        </h3>
-                        ${resultsHtml}
-                    </div>
-                    <button id="reapproveBtn" class="text-xs text-primary hover:underline">Sửa lại kế hoạch thực thi</button>
-                </div>
-            `;
-            document.getElementById('reapproveBtn').addEventListener('click', () => {
-                displayPlanForApproval(plan);
-            });
-        }
-
-        function displayError(message) {
-            statusBadge.innerText = 'Lỗi';
-            statusBadge.className = 'ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400';
-            resultBody.innerHTML = `
-                <div class="flex flex-col items-center text-rose-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                    <p class="font-medium text-lg">${message}</p>
-                </div>
-            `;
-        }
-    </script>
+    <script src="/static/index_script.js"></script>
 </body>
 
 </html>
