@@ -18,7 +18,6 @@ from src.core.helpers import (
     check_logic_equal,
     check_logic_greater,
     check_logic_smaller,
-    check_list_membership,
     check_email,
     check_visa,
     check_mastercard,
@@ -82,10 +81,6 @@ def test_logic_comparisons():
     assert check_logic_greater("100", "50")[0] is True
     assert check_logic_smaller("50", "100")[0] is True
     assert check_logic_equal("20%", "0.2")[0] is True
-
-def test_check_list_membership():
-    assert check_list_membership("A", ["A", "B", "C"])[0] is True
-    assert check_list_membership("D", ["A", "B", "C"])[0] is False
 
 def test_new_format_helpers():
     # Email

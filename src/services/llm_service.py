@@ -84,6 +84,49 @@ JSON:"""
         logger.error(f"Lỗi trong LLM Service: {e}")
         return None
 
+async def extract_data_from_text(text: str, fields: List[str]) -> Optional[Dict[str, str]]:
+    """
+    Nhiệm vụ: Chỉ trích xuất giá trị cho các trường dữ liệu từ văn bản thô.
+    Không chứa logic kiểm tra hay lập kế hoạch.
+    """
+    system_prompt = (
+        "Bạn là một Chuyên gia Trích xuất Dữ liệu Văn bản.\n"
+        "Nhiệm vụ: Đọc văn bản thô và tìm giá trị tương ứng cho danh sách các trường được yêu cầu.\n"
+        "QUY TẮC:\n"
+        "1. Trả về JSON object: {\"tên_trường\": \"giá_trị\"}.\n"
+        "2. Nếu không tìm thấy thông tin cho một trường, hãy để giá trị là \"\".\n"
+        "3. Giữ nguyên định dạng gốc của dữ liệu (ví dụ: ngày tháng, số tiền).\n"
+        "4. CHỈ trả về JSON trong thẻ <output>."
+    )
+    
+    user_prompt = f"""
+<fields_to_find>
+{', '.join(fields)}
+</fields_to_find>
+
+<document_text>
+{text}
+</document_text>
+
+Trích xuất dữ liệu và trả về JSON trong thẻ <output>:"""
+
+    try:
+        response = await client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.0
+        )
+        content = response.choices[0].message.content.strip()
+        cleaned = clean_json_content(content)
+        if not cleaned: return None
+        return json.loads(cleaned)
+    except Exception as e:
+        logger.error(f"Lỗi trích xuất dữ liệu: {e}")
+        return None
+
 async def translate_rule_for_field(rule_text: str, field_name: str, selected_helpers: List[str]) -> Optional[List[Dict[str, Any]]]:
     """Dịch lẻ từng field (giữ lại để hỗ trợ Update v1.5 tương lai)"""
     helpers_info = ""

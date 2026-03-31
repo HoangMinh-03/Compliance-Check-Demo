@@ -1,0 +1,8 @@
+version 2.0
+Người dùng có thể upload file rule và file văn bản từ máy tính, tạm thời sẽ xử lý các định dạng đơn giản như txt, md, doc
+
+Có một bước cho người dùng approve kế hoạch kiểm tra của llm trước khi thực hiện so khớp với các trường
+
+Có thể lưu và load lại các kế hoạch kiểm tra để cho các lần chạy sau mà không cần prompt llm lại
+
+version 2.5
