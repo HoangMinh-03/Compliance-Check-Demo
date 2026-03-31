@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <title>Công cụ đối sánh - Compliance Checker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        border: "hsl(var(--border))",
+                        input: "hsl(var(--input))",
+                        ring: "hsl(var(--ring))",
+                        background: "hsl(var(--background))",
+                        foreground: "hsl(var(--foreground))",
+                        primary: {
+                            DEFAULT: "hsl(var(--primary))",
+                            foreground: "hsl(var(--primary-foreground))",
+                        },
+                        secondary: {
+                            DEFAULT: "hsl(var(--secondary))",
+                            foreground: "hsl(var(--secondary-foreground))",
+                        },
+                        destructive: {
+                            DEFAULT: "hsl(var(--destructive))",
+                            foreground: "hsl(var(--destructive-foreground))",
+                        },
+                        muted: {
+                            DEFAULT: "hsl(var(--muted))",
+                            foreground: "hsl(var(--muted-foreground))",
+                        },
+                        accent: {
+                            DEFAULT: "hsl(var(--accent))",
+                            foreground: "hsl(var(--accent-foreground))",
+                        },
+                        popover: {
+                            DEFAULT: "hsl(var(--popover))",
+                            foreground: "hsl(var(--popover-foreground))",
+                        },
+                        card: {
+                            DEFAULT: "hsl(var(--card))",
+                            foreground: "hsl(var(--card-foreground))",
+                        },
+                    },
+                    borderRadius: {
+                        lg: "var(--radius)",
+                        md: "calc(var(--radius) - 2px)",
+                        sm: "calc(var(--radius) - 4px)",
+                    },
+                },
+            },
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="bg-background text-foreground antialiased selection:bg-primary/30">
+    <div id="root">
+        <div class="min-h-screen p-4 sm:p-6 lg:p-8 flex flex-col items-center">
+            <div class="w-full max-w-6xl flex flex-col gap-6 lg:gap-8">
+                <header class="mb-2">
+                    <h1
+                        class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                        Đối Sánh Demo</h1>
+                    <p class="text-muted-foreground mt-2 font-medium">Nhập các luật và trường dữ liệu để phân tích</p>
+                </header>
+
+                <div class="flex flex-col lg:flex-row gap-6 lg:gap-8 min-h-[500px]">
+                    <!-- Cột Nhập liệu -->
+                    <div
+                        class="flex-1 flex flex-col bg-card/60 backdrop-blur-xl border border-white/[0.05] rounded-3xl overflow-hidden shadow-2xl shadow-black/50">
+                        <div class="p-6 border-b border-white/[0.05] bg-white/[0.02]">
+                            <h2 class="text-lg font-semibold flex items-center gap-2.5 text-foreground/90">
+                                <div class="p-2 rounded-lg bg-primary/10 text-primary">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" class="w-4 h-4">
+                                        <path d="M21 5H3"></path>
+                                        <path d="M15 12H3"></path>
+                                        <path d="M17 19H3"></path>
+                                    </svg>
+                                </div>
+                                Luật và nội dung cần kiểm tra
+                            </h2>
+                        </div>
+                        <div class="p-6 flex-1 flex flex-col relative">
+                            <textarea id="rulesContent" placeholder="Nhập luật cần xử lý tại đây..."
+                                class="flex-1 w-full resize-none bg-input/50 border border-border/50 rounded-xl p-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-300"></textarea>
+                            <div class="mt-6 flex justify-end">
+                                <button id="sendButton"
+                                    class="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 bg-gradient-to-r from-primary to-blue-600 text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg id="buttonIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                                        <path
+                                            d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z">
+                                        </path>
+                                        <path d="m21.854 2.147-10.94 10.939"></path>
+                                    </svg>
+                                    <span id="buttonText">Chạy kiểm tra</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cột Trường dữ liệu -->
+                    <div
+                        class="w-full lg:w-[420px] shrink-0 flex flex-col bg-card/60 backdrop-blur-xl border border-white/[0.05] rounded-3xl overflow-hidden shadow-2xl shadow-black/50">
+                        <div class="p-6 border-b border-white/[0.05] bg-white/[0.02]">
+                            <h2 class="text-lg font-semibold flex items-center gap-2.5 text-foreground/90">
+                                <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" class="w-4 h-4">
+                                        <path d="M13 5h8"></path>
+                                        <path d="M13 12h8"></path>
+                                        <path d="M13 19h8"></path>
+                                        <path d="m3 17 2 2 4-4"></path>
+                                        <path d="m3 7 2 2 4-4"></path>
+                                    </svg>
+                                </div>
+                                Trường dữ liệu
+                                <span
+                                    class="ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-white/5 text-muted-foreground">10
+                                    dòng</span>
+                            </h2>
+                        </div>
+                        <div class="p-4 flex-1 overflow-y-auto max-h-[400px]">
+                            <div class="grid grid-cols-2 gap-3 px-2 mb-3">
+                                <span
+                                    class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trường</span>
+                                <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Giá
+                                    trị</span>
+                            </div>
+                            <div id="dataFields" class="flex flex-col gap-2">
+                                <!-- Lặp lại các dòng input -->
+                                <script>
+                                    const fields = ["Số hợp đồng", "Tên khách hàng", "Ngày tháng năm sinh", "Người đại diện", "CCCD", "Số tiền", "Trạng thái", "Ngày ký", "Ngày hết hạn", "Lãi suất"];
+                                    fields.forEach((field, i) => {
+                                        document.write(`
+                                            <div class="grid grid-cols-2 gap-3 group relative data-row">
+                                                <div class="absolute -left-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity">${(i + 1).toString().padStart(2, '0')}</div>
+                                                <input placeholder="Tên trường..." class="field-key w-full bg-background border border-border/50 rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50 transition-all" value="${field}">
+                                                <input placeholder="Giá trị..." class="field-value w-full bg-background border border-border/50 rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50 transition-all">
+                                            </div>
+                                        `);
+                                    });
+                                </script>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kết quả -->
+                <div id="resultContainer"
+                    class="w-full bg-card/60 backdrop-blur-xl border border-white/[0.05] rounded-3xl overflow-hidden shadow-2xl shadow-black/50 min-h-[250px] flex flex-col">
+                    <div class="p-6 border-b border-white/[0.05] bg-white/[0.02]">
+                        <h2 class="text-lg font-semibold flex items-center gap-2.5 text-foreground/90">
+                            <div id="statusIcon"
+                                class="p-2 rounded-lg bg-purple-500/10 text-purple-400 transition-colors duration-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="w-4 h-4">
+                                    <path d="m7 11 2-2-2-2"></path>
+                                    <path d="M11 13h4"></path>
+                                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+                                </svg>
+                            </div>
+                            Kết quả kiểm tra
+                            <span id="statusBadge"
+                                class="ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-white/5 text-muted-foreground">Chờ
+                                dữ liệu</span>
+                        </h2>
+                    </div>
+                    <div id="resultBody"
+                        class="p-6 flex-1 flex flex-col justify-center items-center text-muted-foreground py-16">
+                        <div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="w-8 h-8 opacity-50">
+                                <path d="m7 11 2-2-2-2"></path>
+                                <path d="M11 13h4"></path>
+                                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+                            </svg>
+                        </div>
+                        <p class="font-medium text-lg text-foreground/70">Chưa có kết quả</p>
+                        <p class="text-sm opacity-60 mt-1">Gửi dữ liệu để nhận phản hồi</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sendButton = document.getElementById('sendButton');
+        const rulesContent = document.getElementById('rulesContent');
+        const resultBody = document.getElementById('resultBody');
+        const statusBadge = document.getElementById('statusBadge');
+        const statusIcon = document.getElementById('statusIcon');
+        const buttonText = document.getElementById('buttonText');
+        const buttonIcon = document.getElementById('buttonIcon');
+
+        sendButton.addEventListener('click', async () => {
+            const content = rulesContent.value.trim();
+            if (!content) {
+                alert('Vui lòng nhập nội dung quy tắc!');
+                return;
+            }
+
+            // Thu thập dữ liệu từ các trường
+            const data = {};
+            document.querySelectorAll('.data-row').forEach(row => {
+                const key = row.querySelector('.field-key').value.trim();
+                const value = row.querySelector('.field-value').value.trim();
+                if (key) {
+                    data[key] = value;
+                }
+            });
+
+            // Hiệu ứng loading
+            sendButton.disabled = true;
+            buttonText.innerText = 'Đang xử lý...';
+            statusBadge.innerText = 'Đang xử lý...';
+            resultBody.innerHTML = `
+                <div class="flex flex-col items-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                    <p class="text-foreground/70">LLM đang phân tích và kiểm tra quy tắc...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/check', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content, data }),
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayResult(result);
+                } else {
+                    displayError(result.error);
+                }
+            } catch (error) {
+                displayError('Có lỗi xảy ra khi kết nối tới máy chủ.');
+                console.error(error);
+            } finally {
+                sendButton.disabled = false;
+                buttonText.innerText = 'Chạy kiểm tra';
+            }
+        });
+
+        function displayResult(result) {
+            const { is_valid, results, execution_plan } = result;
+
+            // Cập nhật badge và icon
+            if (is_valid) {
+                statusBadge.innerText = 'Hợp lệ';
+                statusBadge.className = 'ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400';
+                statusIcon.className = 'p-2 rounded-lg bg-emerald-500/20 text-emerald-400 transition-colors duration-500';
+            } else {
+                statusBadge.innerText = 'Không hợp lệ';
+                statusBadge.className = 'ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400';
+                statusIcon.className = 'p-2 rounded-lg bg-rose-500/20 text-rose-400 transition-colors duration-500';
+            }
+
+            let resultsHtml = '';
+            if (results.length === 0 && is_valid) {
+                resultsHtml = `<div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-4">
+                    Tất cả quy tắc đều được thỏa mãn!
+                </div>`;
+            } else {
+                resultsHtml = results.map(res => {
+                    const isError = res.startsWith('INVALID') || res.includes('ERROR');
+                    const colorClass = isError ? 'text-rose-400 bg-rose-500/10 border-rose-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+                    return `<div class="p-3 rounded-lg border ${colorClass} text-sm font-mono mb-2">${res}</div>`;
+                }).join('');
+            }
+
+            const planHtml = Object.entries(execution_plan).map(([field, rules]) => {
+                return `<div class="mb-3">
+                    <span class="text-xs font-bold text-muted-foreground uppercase mb-1 block">${field}</span>
+                    <div class="flex flex-wrap gap-2">
+                        ${rules.map(r => `<span class="px-2 py-1 bg-white/5 rounded text-xs font-mono border border-white/10">${r}</span>`).join('')}
+                    </div>
+                </div>`;
+            }).join('');
+
+            resultBody.className = "p-6 flex-1 overflow-y-auto w-full";
+            resultBody.innerHTML = `
+                <div class="w-full">
+                    <div class="mb-6">
+                        <h3 class="text-sm font-semibold text-foreground/80 mb-3 flex items-center gap-2">
+                            <div class="w-1 h-4 bg-primary rounded-full"></div> Kết quả kiểm tra
+                        </h3>
+                        ${resultsHtml}
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-semibold text-foreground/80 mb-3 flex items-center gap-2">
+                            <div class="w-1 h-4 bg-purple-500 rounded-full"></div> Kế hoạch thực thi (LLM Generated)
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${planHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayError(message) {
+            statusBadge.innerText = 'Lỗi';
+            statusBadge.className = 'ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400';
+            resultBody.innerHTML = `
+                <div class="flex flex-col items-center text-rose-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <p class="font-medium text-lg">${message}</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+
+</html>

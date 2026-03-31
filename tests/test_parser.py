@@ -5,7 +5,7 @@ import sys
 # Add src to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.parser import parse_dummy_file
+from src.utils.parser import parse_dummy_file
 
 def test_parse_dummy_file(tmp_path):
     d = tmp_path / "test_dummy.md"
