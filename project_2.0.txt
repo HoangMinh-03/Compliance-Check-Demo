@@ -6,3 +6,33 @@ Có một bước cho người dùng approve kế hoạch kiểm tra của llm t
 Có thể lưu và load lại các kế hoạch kiểm tra để cho các lần chạy sau mà không cần prompt llm lại
 
 version 2.5
+
+Thay đổi core của hệ thống, bây giờ từ góc độ của người dùng, họ muốn từ luật, có thể map ra được các helper cần chạy luôn tức là tên các trường là lấy từ luật luôn để người dùng approve.
+Người dùng có thể lưu cái plan này về để sử dụng lại (chính là chức năng lưu plan mà chúng ta đã có)
+Bước tiếp theo, khi người dùng push dữ liệu cần check lên thì gọi llm thực hiện map các field có sẵn vào các bộ hàm đã được tạo, rồi để người dùng approve một lần nữa
+
+version 2.5.1 (Hoàn thành)
+
+Cải thiện UI:
+    - List các mẫu đã lưu được update real-time ngay sau khi lưu.
+    - Workflow mới: Trích xuất luật -> Lưu mẫu -> Chọn mẫu trong list -> Tải & Xem (Review) -> Ánh xạ dữ liệu (Mapping) -> Thực thi.
+    - Phân tách nút bấm trong Modal phê duyệt: Nếu từ trích xuất thì chỉ hiện "Lưu mẫu", nếu từ Load thì hiện cả "Lưu mẫu mới" và "Tiếp tục Mapping".
+
+Cải thiện Logic (Giải pháp Virtual Calculated Fields):
+    - Thêm tính năng "✨ Tính toán" trong bảng Mapping.
+    - Người dùng có thể nhập yêu cầu bằng ngôn ngữ tự nhiên (VD: "Tính tuổi từ năm sinh").
+    - LLM tự động sinh ra lời gọi hàm helper tương ứng (VD: calculate_age(năm_sinh)).
+    - Orchestrator hỗ trợ evaluate các biểu thức này qua resolve_arg.
+    - Thêm helper so sánh ngày tháng: check_date_before, check_date_after.
+    - Thêm helper kiểm tra CCCD Việt Nam: check_cccd_vn (12 số, mã tỉnh hợp lệ).
+
+version 2.5.2
+
+    Phần Phê duyệt Kế hoạch thực thi bây giờ thay vì hiện ra json. từng trường sẽ được hiển thị trong từ block ngang, Mỗi block gồm:
+        Tên trường
+        Các hàm
+        Description cho các hàm (sử dụng description của hàm ngoài cùng)
+        Dữ liệu mẫu (người dùng có thể thay đổi được trường dữ liệu này)
+    người dùng có thể chạy lẻ từng block để kiểm tra khả năng của từng block
+
+    Để triển khai tính năng này, thay vì đưa thêm context cho hàm llm translate_rules, chúng ta sẽ tạo ra một hàm nữa để gen ra description và dữ liệu mẫu để test cho từng trường

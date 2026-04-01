@@ -21,6 +21,7 @@
         const approvalModal = document.getElementById('approvalModal');
         const closeModalBtn = document.getElementById('closeModalBtn');
         const planEditor = document.getElementById('planEditor');
+        const planBlocksContainer = document.getElementById('planBlocksContainer');
         const savePlanAsBtn = document.getElementById('savePlanAsBtn');
         const proceedToMappingBtn = document.getElementById('proceedToMappingBtn');
 
@@ -38,6 +39,213 @@
         fillDataFields(defaultFields);
 
         // --- UI Helper Functions ---
+        function renderPlanBlocks(plan, metadata = {}) {
+            planBlocksContainer.innerHTML = '';
+            
+            if (!plan || Object.keys(plan).length === 0) {
+                planBlocksContainer.innerHTML = '<p class="text-sm text-muted-foreground italic text-center py-4">Không có quy tắc nào được định nghĩa.</p>';
+                return;
+            }
+
+            Object.entries(plan).forEach(([field, rules]) => {
+                const rulesArray = Array.isArray(rules) ? rules : [rules];
+                const hasRules = rulesArray.length > 0;
+                
+                const block = document.createElement('div');
+                block.className = `plan-block p-4 border rounded-xl flex flex-col gap-3 transition-all hover:bg-white/[0.07] ${hasRules ? 'bg-white/5 border-white/10' : 'bg-blue-500/[0.03] border-blue-500/20'}`;
+                block.dataset.field = field;
+
+                let rulesHtml = '';
+                if (hasRules) {
+                    rulesArray.forEach(rule => {
+                        rulesHtml += `
+                            <div class="rule-item flex items-center gap-2 group/rule">
+                                <div class="w-1.5 h-1.5 rounded-full bg-emerald-500/40 group-hover/rule:bg-emerald-500 transition-colors"></div>
+                                <input type="text" class="rule-input flex-1 bg-black/20 border border-white/5 rounded-lg px-3 py-1.5 text-xs font-mono text-emerald-400 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" value="${rule.replace(/"/g, '&quot;')}" placeholder="Tên hàm helper...">
+                            </div>
+                        `;
+                    });
+                } else {
+                    rulesHtml = `
+                        <div class="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10 text-[11px] text-blue-400/70 italic flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                            Trường dữ liệu đầu vào (Biến phụ thuộc)
+                        </div>
+                    `;
+                }
+
+                const fieldMetadata = metadata[field] || { description: "Đang tải mô tả...", sample_value: "" };
+
+                block.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-white/[0.05] pb-2 mb-1">
+                        <div class="flex items-center gap-2 flex-1">
+                            <div class="p-1.5 rounded-md ${hasRules ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
+                            </div>
+                            <input type="text" class="block-field-name bg-transparent font-semibold text-sm text-foreground/90 focus:outline-none border-b border-transparent focus:border-primary/50 transition-colors w-full" value="${field}" placeholder="Tên trường">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="regenerate-block-btn p-1.5 rounded-lg hover:bg-primary/10 text-primary/50 hover:text-primary transition-all" title="Tạo lại logic cho trường này">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>
+                            </button>
+                            <div class="test-result-indicator hidden items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider">
+                                <span class="indicator-icon"></span>
+                                <span class="indicator-text"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="rules-list flex flex-col gap-2">
+                            <p class="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">${hasRules ? 'Quy tắc áp dụng' : 'Vai trò'}</p>
+                            ${rulesHtml}
+                        </div>
+                        <div class="flex flex-col gap-3">
+                            <div class="flex flex-col gap-1">
+                                <p class="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Mô tả</p>
+                                <p class="field-description text-xs text-foreground/60 italic leading-relaxed">${fieldMetadata.description}</p>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <p class="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Dữ liệu mẫu ${hasRules ? '& Chạy thử' : ''}</p>
+                                <div class="flex gap-2">
+                                    <input type="text" class="sample-input flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-primary/50" value="${fieldMetadata.sample_value}" placeholder="Nhập giá trị test...">
+                                    ${hasRules ? `
+                                    <button class="run-block-test-btn px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center gap-1.5 shadow-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                        Chạy thử
+                                    </button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                const testBtn = block.querySelector('.run-block-test-btn');
+                if (testBtn) testBtn.addEventListener('click', () => runSingleBlockCheck(block));
+
+                const regenBtn = block.querySelector('.regenerate-block-btn');
+                if (regenBtn) regenBtn.addEventListener('click', () => regenerateFieldLogic(block));
+
+                planBlocksContainer.appendChild(block);
+            });
+        }
+
+        async function regenerateFieldLogic(block) {
+            const field = block.querySelector('.block-field-name').value.trim();
+            const rulesText = rulesContent.value.trim();
+            const rulesListContainer = block.querySelector('.rules-list');
+            const regenBtn = block.querySelector('.regenerate-block-btn');
+
+            if (!field || !rulesText) return;
+
+            regenBtn.classList.add('animate-spin');
+            try {
+                const response = await fetch('/regenerate-field-logic', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ field_name: field, rules_text: rulesText })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    let rulesHtml = '<p class="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Quy tắc áp dụng</p>';
+                    result.rules.forEach(rule => {
+                        rulesHtml += `
+                            <div class="rule-item flex items-center gap-2 group/rule">
+                                <div class="w-1.5 h-1.5 rounded-full bg-emerald-500/40 group-hover/rule:bg-emerald-500 transition-colors"></div>
+                                <input type="text" class="rule-input flex-1 bg-black/20 border border-white/5 rounded-lg px-3 py-1.5 text-xs font-mono text-emerald-400 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" value="${rule.replace(/"/g, '&quot;')}" placeholder="Tên hàm helper...">
+                            </div>
+                        `;
+                    });
+                    rulesListContainer.innerHTML = rulesHtml;
+                    
+                    // Sau khi có logic mới, cập nhật lại metadata cho toàn bộ plan để đồng bộ mô tả
+                    await updatePlanMetadata(getPlanFromBlocks());
+                } else {
+                    alert(result.error);
+                }
+            } catch (e) {
+                alert('Lỗi kết nối khi tạo lại logic.');
+            } finally {
+                regenBtn.classList.remove('animate-spin');
+            }
+        }
+
+        async function runSingleBlockCheck(block) {
+            const field = block.querySelector('.block-field-name').value.trim();
+            const ruleInputs = block.querySelectorAll('.rule-input');
+            const indicator = block.querySelector('.test-result-indicator');
+            const indicatorIcon = indicator.querySelector('.indicator-icon');
+            const indicatorText = indicator.querySelector('.indicator-text');
+
+            const rulesArray = [];
+            ruleInputs.forEach(input => {
+                const val = input.value.trim();
+                if (val) rulesArray.push(val);
+            });
+
+            if (!field || rulesArray.length === 0) return;
+
+            // Thu thập TẤT CẢ dữ liệu mẫu từ các block khác để hỗ trợ logic liên trường (cross-field)
+            const allSampleData = {};
+            document.querySelectorAll('.plan-block').forEach(b => {
+                const f = b.querySelector('.block-field-name').value.trim();
+                const v = b.querySelector('.sample-input').value.trim();
+                if (f) allSampleData[f] = v;
+            });
+
+            indicator.classList.remove('hidden', 'bg-emerald-500/20', 'text-emerald-400', 'bg-rose-500/20', 'text-rose-400');
+            indicator.classList.add('flex', 'bg-white/5', 'text-muted-foreground');
+            indicatorIcon.innerHTML = '<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+            indicatorText.innerText = 'Đang check...';
+
+            try {
+                const response = await fetch('/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        data: allSampleData, // Gửi toàn bộ data mẫu
+                        execution_plan: { [field]: rulesArray } // Nhưng chỉ chạy rule của field này
+                    })
+                });
+                const result = await response.json();
+                
+                indicator.classList.remove('bg-white/5', 'text-muted-foreground');
+                if (result.success && result.is_valid) {
+                    indicator.classList.add('bg-emerald-500/20', 'text-emerald-400');
+                    indicatorIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><path d="M20 6 9 17l-5-5"></path></svg>';
+                    indicatorText.innerText = 'Hợp lệ';
+                } else {
+                    indicator.classList.add('bg-rose-500/20', 'text-rose-400');
+                    indicatorIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>';
+                    indicatorText.innerText = 'Lỗi';
+                }
+            } catch (e) {
+                indicator.classList.add('bg-rose-500/20', 'text-rose-400');
+                indicatorText.innerText = 'Lỗi hệ thống';
+            }
+        }
+
+        function getPlanFromBlocks() {
+            const newPlan = {};
+            const blocks = planBlocksContainer.querySelectorAll('.plan-block');
+            
+            blocks.forEach(block => {
+                const fieldName = block.querySelector('.block-field-name').value.trim();
+                const ruleInputs = block.querySelectorAll('.rule-input');
+                
+                if (fieldName) {
+                    const rulesArray = [];
+                    ruleInputs.forEach(input => {
+                        const val = input.value.trim();
+                        if (val) rulesArray.push(val);
+                    });
+                    newPlan[fieldName] = rulesArray;
+                }
+            });
+            
+            return newPlan;
+        }
+
         function createDataRow(key, value) {
             const index = dataFieldsContainer.children.length + 1;
             const row = document.createElement('div');
@@ -136,7 +344,8 @@
 
         proceedToMappingBtn.addEventListener('click', () => {
             try {
-                currentPlan = JSON.parse(planEditor.value);
+                currentPlan = getPlanFromBlocks();
+                planEditor.value = JSON.stringify(currentPlan, null, 2); // Sync fallback
                 approvalModal.classList.add('hidden');
                 const data = getFieldData();
                 if (Object.keys(data).length > 0) {
@@ -145,7 +354,7 @@
                     alert('Kế hoạch đã được xác nhận. Vui lòng upload dữ liệu để thực hiện ánh xạ.');
                     statusBadge.innerText = 'Chờ dữ liệu';
                 }
-            } catch (e) { alert('JSON không hợp lệ.'); }
+            } catch (e) { alert('Lỗi khi đọc kế hoạch từ giao diện.'); }
         });
 
         async function initiateMapping(plan, data) {
@@ -207,7 +416,8 @@
             const name = prompt('Nhập tên mẫu mới:');
             if (!name) return;
             try {
-                const planToSave = JSON.parse(planEditor.value);
+                const planToSave = getPlanFromBlocks();
+                planEditor.value = JSON.stringify(planToSave, null, 2); // Sync back
                 const resp = await fetch('/plans/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -354,23 +564,48 @@
             `;
         }
 
-        function displayPlanForApproval(plan, isFromExtraction = false) {
+        async function displayPlanForApproval(plan, isFromExtraction = false) {
             statusBadge.innerText = 'Chờ phê duyệt';
             statusBadge.className = 'ml-4 text-xs font-medium px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-400';
             planEditor.value = JSON.stringify(plan, null, 2);
+            renderPlanBlocks(plan); // Hiển thị khung trước
             
-            // Nếu là từ trích xuất luật mới, chỉ cho phép lưu, không cho mapping ngay
             if (isFromExtraction) {
                 proceedToMappingBtn.classList.add('hidden');
                 savePlanAsBtn.classList.remove('hidden');
-                savePlanAsBtn.classList.add('flex-1'); // Làm cho nút lưu rộng ra
+                savePlanAsBtn.classList.add('flex-1'); 
             } else {
                 proceedToMappingBtn.classList.remove('hidden');
-                savePlanAsBtn.classList.remove('hidden');
-                savePlanAsBtn.classList.remove('flex-1');
+                proceedToMappingBtn.classList.add('flex-1');
+                savePlanAsBtn.classList.add('hidden');
             }
             
             approvalModal.classList.remove('hidden');
+            await updatePlanMetadata(plan);
+        }
+
+        async function updatePlanMetadata(plan) {
+            try {
+                const response = await fetch('/generate-plan-metadata', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ execution_plan: plan })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    // Cập nhật mô tả và dữ liệu mẫu cho từng block mà không render lại toàn bộ
+                    Object.entries(result.metadata).forEach(([field, meta]) => {
+                        const block = document.querySelector(`.plan-block[data-field="${field}"]`);
+                        if (block) {
+                            const descEl = block.querySelector('.field-description');
+                            const inputEl = block.querySelector('.sample-input');
+                            if (descEl) descEl.innerText = meta.description;
+                            // Chỉ điền giá trị mẫu nếu ô input đang trống
+                            if (inputEl && !inputEl.value) inputEl.value = meta.sample_value;
+                        }
+                    });
+                }
+            } catch (e) { console.error("Lỗi khi tải metadata:", e); }
         }
 
         async function executeFinalCheck(plan, mapping) {

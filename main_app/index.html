@@ -269,8 +269,11 @@
                     </button>
                 </div>
                 <div class="p-6 overflow-y-auto flex-1">
-                    <p class="text-xs text-muted-foreground mb-4">Vui lòng kiểm tra và chỉnh sửa JSON nếu cần trước khi thực hiện so khớp.</p>
-                    <textarea id="planEditor" class="w-full h-80 bg-black/40 border border-white/10 rounded-xl p-4 font-mono text-xs text-emerald-400 focus:outline-none focus:ring-1 focus:ring-primary/50 mb-2"></textarea>
+                    <p class="text-xs text-muted-foreground mb-4">Kiểm tra và tùy chỉnh các quy tắc kiểm tra cho từng trường dữ liệu.</p>
+                    <textarea id="planEditor" class="hidden w-full h-80 bg-black/40 border border-white/10 rounded-xl p-4 font-mono text-xs text-emerald-400 focus:outline-none focus:ring-1 focus:ring-primary/50 mb-2"></textarea>
+                    <div id="planBlocksContainer" class="flex flex-col gap-4">
+                        <!-- Plan blocks will be rendered here -->
+                    </div>
                 </div>
                 <div class="p-6 border-t border-white/[0.05] bg-white/[0.02] flex gap-3">
                     <button id="savePlanAsBtn" class="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium transition-all text-foreground/80">Lưu thành mẫu mới</button>

@@ -162,6 +162,8 @@ def check_if(condition: Any, helper_result: Any) -> Tuple[bool, str]:
     if cond:
         if isinstance(helper_result, tuple) and len(helper_result) == 2:
             return helper_result
+        # Nếu helper_result không phải tuple nhưng condition True, 
+        # có thể là do helper được gọi thành công nhưng không trả về tuple (hiếm gặp với registry)
         return True, ""
     return True, ""
 
@@ -252,6 +254,88 @@ def check_date_after(date1: str, date2: str, date_format: str = "%d-%m-%Y") -> T
         return False, f"Ngày '{date1}' không sau ngày '{date2}'"
     except (ValueError, TypeError):
         return False, f"Lỗi định dạng ngày khi so sánh '{date1}' và '{date2}'"
+
+@registry.register(is_pure=True, description="Tính khoảng cách giữa hai ngày theo đơn vị (days, months, years). date_diff(d1, d2, unit)")
+def date_diff(date1: str, date2: str, unit: str = "months", date_format: str = "%d-%m-%Y") -> float:
+    try:
+        clean_format = str(date_format).replace('format=', '').strip('"\'')
+        d1 = datetime.strptime(str(date1), clean_format)
+        d2 = datetime.strptime(str(date2), clean_format)
+        
+        diff_days = (d1 - d2).days
+        if unit == "days":
+            return float(diff_days)
+        elif unit == "months":
+            return float(diff_days / 30.44) # Trung bình ngày trong tháng
+        elif unit == "years":
+            return float(diff_days / 365.25)
+        return float(diff_days)
+    except:
+        return 0.0
+
+@registry.register(description="Kiểm tra ngày cách ngày tham chiếu ít nhất một khoảng (min_dist). check_date_min_distance(ref_date, min_dist, unit)")
+def check_date_min_distance(value: str, ref_date: str, min_dist: Any, unit: str = "months", date_format: str = "%d-%m-%Y") -> Tuple[bool, str]:
+    try:
+        dist = date_diff(value, ref_date, unit, date_format)
+        f_min = float(min_dist)
+        if dist >= f_min:
+            return True, ""
+        return False, f"Khoảng cách ({dist:.1f} {unit}) nhỏ hơn mức tối thiểu {f_min}"
+    except:
+        return False, "Lỗi tính toán khoảng cách ngày"
+
+@registry.register(description="Kiểm tra ngày cách ngày tham chiếu tối đa một khoảng (max_dist). check_date_max_distance(ref_date, max_dist, unit)")
+def check_date_max_distance(value: str, ref_date: str, max_dist: Any, unit: str = "months", date_format: str = "%d-%m-%Y") -> Tuple[bool, str]:
+    try:
+        dist = date_diff(value, ref_date, unit, date_format)
+        f_max = float(max_dist)
+        if dist <= f_max:
+            return True, ""
+        return False, f"Khoảng cách ({dist:.1f} {unit}) lớn hơn mức tối đa {f_max}"
+    except:
+        return False, "Lỗi tính toán khoảng cách ngày"
+
+@registry.register(is_pure=True, description="Cộng hai giá trị.")
+def add(val1: Any, val2: Any) -> float:
+    try:
+        return _parse_value(val1) + _parse_value(val2)
+    except:
+        return 0.0
+
+@registry.register(is_pure=True, description="Trừ giá trị 1 cho giá trị 2.")
+def subtract(val1: Any, val2: Any) -> float:
+    try:
+        return _parse_value(val1) - _parse_value(val2)
+    except:
+        return 0.0
+
+@registry.register(is_pure=True, description="Nhân hai giá trị.")
+def multiply(val1: Any, val2: Any) -> float:
+    try:
+        return _parse_value(val1) * _parse_value(val2)
+    except:
+        return 0.0
+
+@registry.register(is_pure=True, description="Chia giá trị 1 cho giá trị 2.")
+def divide(val1: Any, val2: Any) -> float:
+    try:
+        v1 = _parse_value(val1)
+        v2 = _parse_value(val2)
+        if v2 == 0: return 0.0
+        return v1 / v2
+    except:
+        return 0.0
+
+@registry.register(is_pure=True, description="Phủ định một giá trị logic.")
+def check_logic_not(value: Any) -> bool:
+    val = value[0] if isinstance(value, tuple) and len(value) == 2 else value
+    return not bool(val)
+
+@registry.register(is_pure=True, description="Kiểm tra một giá trị có trống hay không (trả về True nếu trống).")
+def is_empty(value: Any) -> bool:
+    if value is None: return True
+    val_str = str(value).strip()
+    return val_str == "" or val_str.lower() in ["none", "null", "nan"]
 
 @registry.register(description="Kiểm tra CCCD Việt Nam (12 số, đúng mã tỉnh).")
 def check_cccd_vn(value: str) -> Tuple[bool, str]:

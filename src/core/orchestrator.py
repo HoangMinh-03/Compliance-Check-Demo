@@ -11,18 +11,30 @@ def split_args(args_str: str) -> List[str]:
     args = []
     current_arg = []
     paren_depth = 0
+    in_quote = None  # Theo dõi xem đang ở trong nháy đơn hay kép
+    
     for char in args_str:
-        if char == ',' and paren_depth == 0:
+        # Xử lý dấu nháy
+        if char in ["'", '"']:
+            if in_quote == char:
+                in_quote = None
+            elif in_quote is None:
+                in_quote = char
+            current_arg.append(char)
+        # Chỉ tách bằng dấu phẩy nếu không ở trong nháy VÀ không ở trong ngoặc lồng
+        elif char == ',' and paren_depth == 0 and in_quote is None:
             args.append("".join(current_arg).strip())
             current_arg = []
         else:
             if char == '(': paren_depth += 1
             elif char == ')': paren_depth -= 1
             current_arg.append(char)
-    if current_arg: args.append("".join(current_arg).strip())
+            
+    if current_arg: 
+        args.append("".join(current_arg).strip())
     return args
 
-def resolve_arg(arg: Any, data_dict: Dict[str, str], mapping: Optional[Dict[str, str]] = None) -> Any:
+def resolve_arg(arg: Any, data_dict: Dict[str, str], mapping: Optional[Dict[str, str]] = None, current_value: Any = None) -> Any:
     if isinstance(arg, dict):
         if arg.get("type") == "expression" or "value" in arg:
             arg = arg.get("value")
@@ -32,18 +44,34 @@ def resolve_arg(arg: Any, data_dict: Dict[str, str], mapping: Optional[Dict[str,
     if not isinstance(arg, str): return arg
     arg_stripped = arg.strip()
     
-    # Handle recursive function calls in expressions
-    match = re.match(r"^(\w+)\((.*)\)$", arg_stripped)
+    # Handle recursive function calls in expressions (supports unicode)
+    match = re.match(r"^([a-zA-Z0-9_À-ỹ]+)\((.*)\)$", arg_stripped)
     if match:
         func_name = match.group(1)
         inner_args_str = match.group(2)
         helper_func = registry.get_helper(func_name)
         if helper_func:
-            inner_args = [resolve_arg(a, data_dict, mapping) for a in split_args(inner_args_str)]
+            inner_args = [resolve_arg(a, data_dict, mapping, current_value) for a in split_args(inner_args_str)]
+            
+            # THÔNG MINH: Chỉ chèn current_value nếu số lượng đối số cung cấp 
+            # ít hơn số lượng tham số BẮT BUỘC (không có mặc định) của hàm.
+            sig = inspect.signature(helper_func)
+            required_params = [p for p in sig.parameters.values() if p.default is p.empty and p.kind != p.VAR_POSITIONAL and p.kind != p.VAR_KEYWORD]
+            
+            if len(inner_args) < len(required_params) and current_value is not None:
+                inner_args.insert(0, current_value)
+                
             result = helper_func(*inner_args)
             if isinstance(result, tuple) and len(result) == 2: return result[0] 
             return result
             
+    # NEW: If arg is just a helper name (no parens), and we have current_value, try executing it
+    if not "(" in arg_stripped and not ")" in arg_stripped:
+        helper_func = registry.get_helper(arg_stripped)
+        if helper_func and current_value is not None:
+            result = helper_func(current_value)
+            return result
+
     # NEW: Try resolving through mapping first (Rule Space -> Data Space)
     if mapping and arg_stripped in mapping and mapping[arg_stripped]:
         mapped_field = mapping[arg_stripped]
@@ -51,28 +79,55 @@ def resolve_arg(arg: Any, data_dict: Dict[str, str], mapping: Optional[Dict[str,
             return data_dict[mapped_field]
 
     # Try resolving directly from data_dict (Data Space)
-    if arg_stripped in data_dict: return data_dict[arg_stripped]
+    if arg_stripped in data_dict: 
+        val = data_dict[arg_stripped]
+        return val
+    
+    # Robust matching: Try stripping and case-insensitive
+    target = arg_stripped.strip().lower()
+    for f, v in data_dict.items():
+        if f.strip().lower() == target:
+            return v
     
     if arg_stripped == "current_date":
         from datetime import datetime
         return datetime.now().strftime("%d-%m-%Y")
         
-    try: return ast.literal_eval(arg_stripped)
+    try: 
+        val = ast.literal_eval(arg_stripped)
+        return val
     except: pass
     
     return arg_stripped
 
 def parse_rule_string(rule_str: str) -> Optional[Dict[str, Any]]:
     rule_str = rule_str.strip()
-    match = re.match(r"^(\w+)(\((.*)\))?$", rule_str)
+    # Support unicode in function names
+    match = re.match(r"^([a-zA-Z0-9_À-ỹ]+)(\((.*)\))?$", rule_str)
     if not match: return None
     func_name = match.group(1)
-    args_str = match.group(3) or ""
+    
+    # Robust argument extraction: find the content of the outermost parentheses
+    args_str = ""
+    if "(" in rule_str:
+        start = rule_str.find("(") + 1
+        end = rule_str.rfind(")")
+        args_str = rule_str[start:end]
+        
     args = []
     if args_str:
         for p in split_args(args_str):
-            try: args.append(ast.literal_eval(p))
-            except: args.append(p)
+            p_stripped = p.strip()
+            try: 
+                # If it's a quoted string, use literal_eval
+                if (p_stripped.startswith("'") and p_stripped.endswith("'")) or \
+                   (p_stripped.startswith('"') and p_stripped.endswith('"')):
+                    args.append(ast.literal_eval(p_stripped))
+                else:
+                    # Keep as string for resolve_arg to handle (field names, nested calls)
+                    args.append(p_stripped)
+            except: 
+                args.append(p_stripped)
     return {"function": func_name, "args": args}
 
 def run_compliance_check(data_dict: Dict[str, str], rule_map: Any, mapping: Optional[Dict[str, str]] = None) -> Tuple[bool, List[str]]:
@@ -148,7 +203,7 @@ def run_compliance_check(data_dict: Dict[str, str], rule_map: Any, mapping: Opti
                 continue
                 
             try:
-                resolved_args = [resolve_arg(a, data_dict, mapping) for a in args]
+                resolved_args = [resolve_arg(a, data_dict, mapping, current_value=value) for a in args]
                 
                 # THÔNG MINH: Kiểm tra chữ ký hàm để quyết định có chèn 'value' hay không
                 sig = inspect.signature(helper_func)

@@ -42,7 +42,15 @@ class ExtractDataRequest(BaseModel):
     text: str
     fields: List[str]
 
+class GenerateMetadataRequest(BaseModel):
+    execution_plan: Dict[str, List[Any]]
+
+class RegenerateLogicRequest(BaseModel):
+    field_name: str
+    rules_text: str
+
 @router.post("/check")
+# ... (existing check_compliance) ...
 async def check_compliance(req: ComplianceRequest):
     """(Legacy) Thực hiện cả 2 bước: dịch và kiểm tra."""
     try:
@@ -155,3 +163,27 @@ async def extract_data_api(req: ExtractDataRequest):
         return {"success": True, "data": data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.post("/generate-plan-metadata")
+async def generate_plan_metadata_api(req: GenerateMetadataRequest):
+    """Tạo description và sample data cho từng trường trong plan."""
+    try:
+        from src.services.llm_service import generate_plan_metadata
+        metadata = await generate_plan_metadata(req.execution_plan)
+        if metadata is None:
+            return {"success": False, "error": "Không thể tạo metadata cho kế hoạch."}
+        return {"success": True, "metadata": metadata}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/regenerate-field-logic")
+async def regenerate_field_logic_api(req: RegenerateLogicRequest):
+    """Tạo lại logic cho một trường cụ thể."""
+    try:
+        from src.services.llm_service import translate_single_field_logic
+        new_rules = await translate_single_field_logic(req.field_name, req.rules_text)
+        if new_rules is None:
+            return {"success": False, "error": "Không thể tạo lại logic cho trường này."}
+        return {"success": True, "rules": new_rules}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
