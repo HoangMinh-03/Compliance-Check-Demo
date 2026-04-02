@@ -10,10 +10,11 @@ from src.core.helpers import registry
 load_dotenv(override=True)
 logger = logging.getLogger(__name__)
 
-LLM_URL = os.getenv("LLM_URL")
+LLM_API_BASE = os.getenv("LLM_API_BASE")
+LLM_API_KEY = os.getenv("LLM_API_KEY")
 LLM_MODEL = os.getenv("LLM_MODEL")
 
-client = AsyncOpenAI(base_url=LLM_URL, api_key="sk-no-key-required")
+client = AsyncOpenAI(base_url=LLM_API_BASE, api_key=LLM_API_KEY)
 
 def clean_json_content(content: str) -> str:
     if '<output>' in content and '</output>' in content:
