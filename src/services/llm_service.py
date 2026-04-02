@@ -50,7 +50,7 @@ async def translate_rules(rules_text: str) -> Optional[Dict[str, List[Any]]]:
         "- Hàm Validation (vd: check_numeric, check_range): Hệ thống tự động truyền giá trị của trường hiện tại vào tham số đầu tiên.\n"
         "- Hàm Logic/Pure (vd: calculate_age, check_logic_greater, is_empty): Không tự động nhận giá trị trường. Bạn phải truyền tham số rõ ràng.\n"
         "- Điều kiện (check_if): Dùng 'check_if(điều_kiện, kết_quả_nếu_đúng)'. \n"
-        "  Ví dụ: \"check_if(is_empty(Chữ ký), check_not_empty)\"\n"
+        "  Ví dụ: \"check_if(is_empty(A), check_not_empty)\"\n"
         "  Ví dụ khoảng cách ngày (chưa có thứ tự trước sau): \"check_date_min_distance(Ngày ký, 12, 'months')\"\n"
         "\n"
         "Yêu cầu: Output JSON trong thẻ <output>."

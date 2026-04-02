@@ -51,7 +51,8 @@ def resolve_arg(arg: Any, data_dict: Dict[str, str], mapping: Optional[Dict[str,
         inner_args_str = match.group(2)
         helper_func = registry.get_helper(func_name)
         if helper_func:
-            inner_args = [resolve_arg(a, data_dict, mapping, current_value) for a in split_args(inner_args_str)]
+            raw_inner_args = split_args(inner_args_str)
+            inner_args = [resolve_arg(a, data_dict, mapping, current_value) for a in raw_inner_args]
             
             # THÔNG MINH: Quyết định tiêm current_value
             sig = inspect.signature(helper_func)
@@ -60,16 +61,23 @@ def resolve_arg(arg: Any, data_dict: Dict[str, str], mapping: Optional[Dict[str,
             # Phân tích chữ ký hàm
             num_required = len([p for p in params if p.default is inspect.Parameter.empty and p.kind not in [inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD]])
             first_param_name = params[0].name if params else ""
+            has_date_format_param = any(p.name == "date_format" for p in params)
             
             should_inject = False
             if current_value is not None:
-                # Trường hợp 1: Thiếu tham số bắt buộc -> BẮT BUỘC chèn
+                # 1. Thiếu tham số bắt buộc
                 if len(inner_args) < num_required:
                     should_inject = True
-                # Trường hợp 2: Đã đủ tham số bắt buộc nhưng vẫn thiếu tham số tùy chọn
-                # Chỉ chèn nếu tham số đầu tiên tên là 'value' (Validation chuẩn)
-                elif len(inner_args) < len(params) and first_param_name == "value":
-                    should_inject = True
+                # 2. Đã đủ tham số bắt buộc nhưng vẫn thiếu tham số tùy chọn
+                elif len(inner_args) < len(params):
+                    # Nếu tên tham số đầu là 'value'
+                    if first_param_name == "value":
+                        should_inject = True
+                    # Heuristic: Nếu có tham số date_format và đối số cuối cùng trông giống format (có %)
+                    elif has_date_format_param and len(raw_inner_args) > 0:
+                        last_arg_str = str(raw_inner_args[-1])
+                        if "%" in last_arg_str:
+                            should_inject = True
             
             if should_inject:
                 inner_args.insert(0, current_value)
@@ -225,15 +233,22 @@ def run_compliance_check(data_dict: Dict[str, str], rule_map: Any, mapping: Opti
                 # Phân tích chữ ký hàm
                 num_required = len([p for p in params if p.default is inspect.Parameter.empty and p.kind not in [inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD]])
                 first_param_name = params[0].name if params else ""
+                has_date_format_param = any(p.name == "date_format" for p in params)
                 
                 should_inject = False
-                # Trường hợp 1: Thiếu tham số bắt buộc -> BẮT BUỘC chèn
+                # 1. Thiếu tham số bắt buộc
                 if len(resolved_args) < num_required:
                     should_inject = True
-                # Trường hợp 2: Đã đủ tham số bắt buộc nhưng vẫn thiếu tham số tùy chọn
-                # Chỉ chèn nếu tham số đầu tiên tên là 'value' (Validation chuẩn)
-                elif len(resolved_args) < len(params) and first_param_name == "value":
-                    should_inject = True
+                # 2. Đã đủ tham số bắt buộc nhưng vẫn thiếu tham số tùy chọn
+                elif len(resolved_args) < len(params):
+                    # Nếu tên tham số đầu là 'value'
+                    if first_param_name == "value":
+                        should_inject = True
+                    # Heuristic: Nếu có tham số date_format và đối số cuối cùng trông giống format (có %)
+                    elif has_date_format_param and len(args) > 0:
+                        last_arg_str = str(args[-1])
+                        if "%" in last_arg_str:
+                            should_inject = True
                 
                 if should_inject:
                     resolved_args.insert(0, value)

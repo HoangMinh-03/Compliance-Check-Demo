@@ -103,7 +103,25 @@
                         </div>
                         <div class="p-6 flex-1 flex flex-col relative">
                             <textarea id="rulesContent" placeholder="Nhập luật cần xử lý tại đây..."
-                                class="flex-1 w-full resize-none bg-input/50 border border-border/50 rounded-xl p-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-300"></textarea>
+                                class="flex-1 w-full resize-none bg-input/50 border border-border/50 rounded-xl p-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-300">Căn cứ quy định về quản lý hồ sơ tín dụng, mọi thỏa thuận phải được định danh bằng Số hợp đồng; trường hợp thiếu thông tin này, hệ thống sẽ từ chối xác lập giao dịch.
+
+Thời điểm ký kết văn bản phải tuân thủ định dạng ngày-tháng-năm và tuyệt đối không được ghi nhận sau ngày hiện tại của hệ thống.
+
+Để đảm bảo tính đồng bộ với hệ thống quản lý thông tin khách hàng (CIF), Tên khách hàng phải được viết hoa toàn bộ, chỉ chứa ký tự chữ cái Alphabet và dấu cách.
+
+Thông tin về ngày sinh phải được ghi chép đầy đủ theo định dạng chuẩn để phục vụ công tác xác minh nhân thân.
+
+Số CCCD của người thụ hưởng bắt buộc phải chứa đúng 12 ký tự số và không chứa ký tự lạ
+
+Lãi xuất thỏa thuận phải được biểu diễn dưới dạng số, đảm bảo không vượt quá mức trần 20 và có độ dài chuỗi không quá 4 ký tự.
+
+Trường Trạng thái không được để trống và chỉ có thể là 'Đã duyệt' hoặc 'Đang duyệt'. 
+
+Thực hiện quy định tại Điều 21 Bộ luật Dân sự, trường hợp khách hàng cá nhân có Ngày tháng năm sinh xác định chủ thể chưa đủ 18 tuổi tại thời điểm ký , yêu cầu bắt buộc phải bổ sung thông tin Người đại diện theo pháp luật.
+
+Trong trường hợp không có chữ ký thì yêu cầu phải có thông tin Cơ quan ban hành đóng dấu xác nhận thay thế.
+
+Ngày hết hạn phải nằm sau Ngày ký và cách ngày ký tối thiếu 180 ngày để đảm bảo kế hoạch thu hồi vốn, nếu Phương thức giải ngân là 'Giải ngân một lần’</textarea>
                             <div class="mt-6 flex justify-end">
                                 <button id="sendButton"
                                     class="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 bg-gradient-to-r from-primary to-blue-600 text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -173,7 +191,7 @@
                                 <span></span>
                             </div>
                             <div id="dataFields" class="flex flex-col gap-2">
-                                <!-- Các trường dữ liệu sẽ được render động -->
+                                <!-- Các trường dữ liệu sẽ được render động qua JavaScript -->
                             </div>
                         </div>
                     </div>
@@ -200,8 +218,12 @@
                                     class="bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all cursor-pointer">
                                     <option value="">-- Chọn mẫu đã lưu --</option>
                                 </select>
-                                <button id="loadPlanBtn" class="px-3 py-1 bg-primary/20 hover:bg-primary/30 border border-primary/30 rounded-lg text-[10px] font-semibold text-primary transition-all">Tải & Xem</button>
-                                <button id="runCheckBtn" class="px-3 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-600/30 rounded-lg text-[10px] font-semibold text-emerald-400 transition-all hidden">Chạy kiểm tra</button>
+                                <button id="loadPlanBtn"
+                                    class="px-3 py-1 bg-primary/20 hover:bg-primary/30 border border-primary/30 rounded-lg text-[10px] font-semibold text-primary transition-all">Tải
+                                    & Xem</button>
+                                <button id="runCheckBtn"
+                                    class="px-3 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-600/30 rounded-lg text-[10px] font-semibold text-emerald-400 transition-all hidden">Chạy
+                                    kiểm tra</button>
                             </div>
                             <span id="statusBadge"
                                 class="ml-4 text-xs font-medium px-2.5 py-1 rounded-full bg-white/5 text-muted-foreground">Chờ
@@ -229,26 +251,44 @@
         <!-- Modal Ánh xạ Dữ liệu -->
         <div id="mappingModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-            <div class="relative w-full max-w-2xl bg-card border border-white/10 rounded-3xl shadow-2xl shadow-black overflow-hidden flex flex-col max-h-[90vh]">
+            <div
+                class="relative w-full max-w-2xl bg-card border border-white/10 rounded-3xl shadow-2xl shadow-black overflow-hidden flex flex-col max-h-[90vh]">
                 <div class="p-6 border-b border-white/[0.05] bg-white/[0.02] flex items-center justify-between">
                     <h2 class="text-lg font-semibold flex items-center gap-2.5 text-foreground/90">
                         <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M13 5h8"></path><path d="M13 12h8"></path><path d="M13 19h8"></path><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="w-4 h-4">
+                                <path d="M13 5h8"></path>
+                                <path d="M13 12h8"></path>
+                                <path d="M13 19h8"></path>
+                                <path d="m3 17 2 2 4-4"></path>
+                                <path d="m3 7 2 2 4-4"></path>
+                            </svg>
                         </div>
                         Ánh xạ Dữ liệu (Mapping)
                     </h2>
-                    <button id="closeMappingModalBtn" class="p-2 rounded-lg hover:bg-white/5 text-muted-foreground transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <button id="closeMappingModalBtn"
+                        class="p-2 rounded-lg hover:bg-white/5 text-muted-foreground transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="w-5 h-5">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
                     </button>
                 </div>
                 <div class="p-6 overflow-y-auto flex-1">
-                    <p class="text-xs text-muted-foreground mb-4">Ghép các trường yêu cầu từ luật với các trường thực tế trong dữ liệu của bạn.</p>
+                    <p class="text-xs text-muted-foreground mb-4">Ghép các trường yêu cầu từ luật với các trường thực tế
+                        trong dữ liệu của bạn.</p>
                     <div id="mappingContainer" class="flex flex-col gap-3">
                         <!-- Mapping rows will be rendered here -->
                     </div>
                 </div>
                 <div class="p-6 border-t border-white/[0.05] bg-white/[0.02] flex gap-3">
-                    <button id="confirmMappingBtn" class="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg font-semibold transition-all shadow-lg shadow-primary/20">Xác nhận & Chạy</button>
+                    <button id="confirmMappingBtn"
+                        class="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg font-semibold transition-all shadow-lg shadow-primary/20">Xác
+                        nhận & Chạy</button>
                 </div>
             </div>
         </div>
@@ -256,28 +296,47 @@
         <!-- Modal Phê duyệt Kế hoạch -->
         <div id="approvalModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-            <div class="relative w-full max-w-2xl bg-card border border-white/10 rounded-3xl shadow-2xl shadow-black overflow-hidden flex flex-col max-h-[90vh]">
+            <div
+                class="relative w-full max-w-2xl bg-card border border-white/10 rounded-3xl shadow-2xl shadow-black overflow-hidden flex flex-col max-h-[90vh]">
                 <div class="p-6 border-b border-white/[0.05] bg-white/[0.02] flex items-center justify-between">
                     <h2 class="text-lg font-semibold flex items-center gap-2.5 text-foreground/90">
                         <div class="p-2 rounded-lg bg-purple-500/10 text-purple-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="m7 11 2-2-2-2"></path><path d="M11 13h4"></path><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="w-4 h-4">
+                                <path d="m7 11 2-2-2-2"></path>
+                                <path d="M11 13h4"></path>
+                                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+                            </svg>
                         </div>
                         Phê duyệt Kế hoạch thực thi
                     </h2>
-                    <button id="closeModalBtn" class="p-2 rounded-lg hover:bg-white/5 text-muted-foreground transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <button id="closeModalBtn"
+                        class="p-2 rounded-lg hover:bg-white/5 text-muted-foreground transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="w-5 h-5">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
                     </button>
                 </div>
                 <div class="p-6 overflow-y-auto flex-1">
-                    <p class="text-xs text-muted-foreground mb-4">Kiểm tra và tùy chỉnh các quy tắc kiểm tra cho từng trường dữ liệu.</p>
-                    <textarea id="planEditor" class="hidden w-full h-80 bg-black/40 border border-white/10 rounded-xl p-4 font-mono text-xs text-emerald-400 focus:outline-none focus:ring-1 focus:ring-primary/50 mb-2"></textarea>
+                    <p class="text-xs text-muted-foreground mb-4">Kiểm tra và tùy chỉnh các quy tắc kiểm tra cho từng
+                        trường dữ liệu.</p>
+                    <textarea id="planEditor"
+                        class="hidden w-full h-80 bg-black/40 border border-white/10 rounded-xl p-4 font-mono text-xs text-emerald-400 focus:outline-none focus:ring-1 focus:ring-primary/50 mb-2"></textarea>
                     <div id="planBlocksContainer" class="flex flex-col gap-4">
                         <!-- Plan blocks will be rendered here -->
                     </div>
                 </div>
                 <div class="p-6 border-t border-white/[0.05] bg-white/[0.02] flex gap-3">
-                    <button id="savePlanAsBtn" class="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium transition-all text-foreground/80">Lưu thành mẫu mới</button>
-                    <button id="proceedToMappingBtn" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold transition-all shadow-lg shadow-emerald-900/20">Tiếp tục Ánh xạ Dữ liệu</button>
+                    <button id="savePlanAsBtn"
+                        class="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium transition-all text-foreground/80">Lưu
+                        thành mẫu mới</button>
+                    <button id="proceedToMappingBtn"
+                        class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold transition-all shadow-lg shadow-emerald-900/20">Tiếp
+                        tục Ánh xạ Dữ liệu</button>
                 </div>
             </div>
         </div>
