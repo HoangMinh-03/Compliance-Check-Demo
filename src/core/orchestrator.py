@@ -53,12 +53,25 @@ def resolve_arg(arg: Any, data_dict: Dict[str, str], mapping: Optional[Dict[str,
         if helper_func:
             inner_args = [resolve_arg(a, data_dict, mapping, current_value) for a in split_args(inner_args_str)]
             
-            # THÔNG MINH: Chỉ chèn current_value nếu số lượng đối số cung cấp 
-            # ít hơn số lượng tham số BẮT BUỘC (không có mặc định) của hàm.
+            # THÔNG MINH: Quyết định tiêm current_value
             sig = inspect.signature(helper_func)
-            required_params = [p for p in sig.parameters.values() if p.default is p.empty and p.kind != p.VAR_POSITIONAL and p.kind != p.VAR_KEYWORD]
+            params = list(sig.parameters.values())
             
-            if len(inner_args) < len(required_params) and current_value is not None:
+            # Phân tích chữ ký hàm
+            num_required = len([p for p in params if p.default is inspect.Parameter.empty and p.kind not in [inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD]])
+            first_param_name = params[0].name if params else ""
+            
+            should_inject = False
+            if current_value is not None:
+                # Trường hợp 1: Thiếu tham số bắt buộc -> BẮT BUỘC chèn
+                if len(inner_args) < num_required:
+                    should_inject = True
+                # Trường hợp 2: Đã đủ tham số bắt buộc nhưng vẫn thiếu tham số tùy chọn
+                # Chỉ chèn nếu tham số đầu tiên tên là 'value' (Validation chuẩn)
+                elif len(inner_args) < len(params) and first_param_name == "value":
+                    should_inject = True
+            
+            if should_inject:
                 inner_args.insert(0, current_value)
                 
             result = helper_func(*inner_args)
@@ -209,9 +222,20 @@ def run_compliance_check(data_dict: Dict[str, str], rule_map: Any, mapping: Opti
                 sig = inspect.signature(helper_func)
                 params = list(sig.parameters.values())
                 
-                # Nếu LLM cung cấp ít đối số hơn tổng số tham số mà hàm có thể nhận,
-                # ta tự động chèn 'value' vào đầu (áp dụng cho cả validation và logic check).
-                if len(resolved_args) < len(params):
+                # Phân tích chữ ký hàm
+                num_required = len([p for p in params if p.default is inspect.Parameter.empty and p.kind not in [inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD]])
+                first_param_name = params[0].name if params else ""
+                
+                should_inject = False
+                # Trường hợp 1: Thiếu tham số bắt buộc -> BẮT BUỘC chèn
+                if len(resolved_args) < num_required:
+                    should_inject = True
+                # Trường hợp 2: Đã đủ tham số bắt buộc nhưng vẫn thiếu tham số tùy chọn
+                # Chỉ chèn nếu tham số đầu tiên tên là 'value' (Validation chuẩn)
+                elif len(resolved_args) < len(params) and first_param_name == "value":
+                    should_inject = True
+                
+                if should_inject:
                     resolved_args.insert(0, value)
                 
                 # Thực thi hàm với danh sách đối số đã chuẩn hóa

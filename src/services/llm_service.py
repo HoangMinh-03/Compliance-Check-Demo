@@ -43,13 +43,15 @@ async def translate_rules(rules_text: str) -> Optional[Dict[str, List[Any]]]:
         "3. TUYỆT ĐỐI KHÔNG dùng toán tử so sánh (<, >, ==, !=, <=, >=). Thay vào đó, hãy sử dụng các hàm helper tương ứng như check_logic_greater, check_logic_equal, check_logic_smaller.\n"
         "4. CHỈ sử dụng các hàm helper được cung cấp trong danh sách.\n"
         "5. Cấu trúc JSON: {\"tên_trường\": [\"helper_1\", \"helper_2(args)\", ...]}\n"
+        "6. Tên trường không được bỏ trong dấu ngoặc, phải giữ nguyên y như trong văn bản quy tắc."
+        "7. Giá trị của trường là số thì không cần bỏ trong ngoặc, nhưng nếu là chuỗi thì phải bỏ trong dấu ngoặc đơn.\n"
         "\n"
         "=== HƯỚNG DẪN LOGIC ===\n"
         "- Hàm Validation (vd: check_numeric, check_range): Hệ thống tự động truyền giá trị của trường hiện tại vào tham số đầu tiên.\n"
         "- Hàm Logic/Pure (vd: calculate_age, check_logic_greater, is_empty): Không tự động nhận giá trị trường. Bạn phải truyền tham số rõ ràng.\n"
         "- Điều kiện (check_if): Dùng 'check_if(điều_kiện, kết_quả_nếu_đúng)'. \n"
         "  Ví dụ: \"check_if(is_empty(Chữ ký), check_not_empty)\"\n"
-        "  Ví dụ khoảng cách ngày: \"check_date_min_distance(Ngày ký, 12, 'months')\"\n"
+        "  Ví dụ khoảng cách ngày (chưa có thứ tự trước sau): \"check_date_min_distance(Ngày ký, 12, 'months')\"\n"
         "\n"
         "Yêu cầu: Output JSON trong thẻ <output>."
     )
@@ -110,7 +112,7 @@ async def translate_rules(rules_text: str) -> Optional[Dict[str, List[Any]]]:
         "Nhiệm vụ: Rà soát Execution Plan và bổ sung các trường dữ liệu bị thiếu.\n"
         "\n"
         "QUY TẮC:\n"
-        "1. Duyệt qua TẤT CẢ các hàm trong Plan hiện tại. Nếu một Tên Trường xuất hiện như một tham số bên trong một hàm (ví dụ: 'Ngày sinh' trong calculate_age(Ngày sinh), hoặc 'Chữ ký' trong is_empty(Chữ ký)) nhưng Tên Trường đó chưa có trong danh sách Keys của JSON bạn PHẢI, kiểm tra lại một lần nữa xem nó có chắc chắn không nằm trong các trường đã được quy định không, nếu không thêm nó vào làm Key mới với list rỗng [] (Tên trường phải được giữ nguyên vẹn y như trong hàm).\n"
+        "1. Duyệt qua TẤT CẢ các hàm trong Plan hiện tại. Nếu một Tên Trường xuất hiện như một tham số bên trong một hàm (ví dụ: 'Ngày sinh' trong calculate_age(Ngày sinh)) nhưng Tên Trường đó chưa có trong danh sách Keys của JSON bạn PHẢI, kiểm tra lại một lần nữa xem nó có chắc chắn không nằm trong các trường đã được quy định không, nếu không thêm nó vào làm Key mới với list rỗng [] (Tên trường phải được giữ nguyên vẹn y như trong hàm).\n"
         "2. Đảm bảo mọi biến số cần thiết cho logic đều được liệt kê làm key để hệ thống thực hiện ánh xạ.\n"
         "3. KHÔNG thay đổi logic của các trường đã có.\n"
         "4. Trả về Execution Plan hoàn thiện dưới dạng JSON trong thẻ <output>."
@@ -146,16 +148,18 @@ async def translate_single_field_logic(field_name: str, full_rules_text: str) ->
         "\n"
         "=== QUY TẮC QUAN TRỌNG ===\n"
         "1. CHỈ trả về danh sách các hàm helper (JSON array) cho trường được yêu cầu.\n"
-        "2. TUYỆT ĐỐI KHÔNG sử dụng cú pháp Python (if, else, and, or, not).\n"
+        "2. TUYỆT ĐỐI KHÔNG sử dụng if, else.\n"
         "3. TUYỆT ĐỐI KHÔNG dùng toán tử so sánh (<, >, ==, !=, <=, >=). Thay vào đó, hãy sử dụng các hàm helper tương ứng như check_logic_greater, check_logic_equal, check_logic_smaller.\n"
         "4. CHỈ sử dụng các hàm helper được cung cấp trong danh sách.\n"
+        "5. Tên trường không được bỏ trong dấu ngoặc, phải giữ nguyên y như trong văn bản quy tắc."
+        "6. Giá trị của trường là số thì không cần bỏ trong ngoặc, nhưng nếu là chuỗi thì phải bỏ trong dấu ngoặc đơn.\n"
         "\n"
         "=== HƯỚNG DẪN LOGIC ===\n"
         "- Hàm Validation (vd: check_numeric, check_range): Hệ thống tự động truyền giá trị của trường hiện tại vào tham số đầu tiên. Bạn chỉ cần điền các tham số còn lại.\n"
         "- Hàm Logic/Pure (vd: calculate_age, check_logic_greater, is_empty): Không tự động nhận giá trị trường. Bạn phải truyền tham số rõ ràng.\n"
         "- Điều kiện (check_if): Dùng 'check_if(điều_kiện, kết_quả_nếu_đúng)'. \n"
         "  Ví dụ: \"check_if(is_empty(Chữ ký), check_not_empty)\"\n"
-        "  Ví dụ khoảng cách ngày: \"check_date_min_distance(Ngày ký, 12, 'months')\"\n"
+        "  Ví dụ khoảng cách ngày (chưa có thứ tự trước sau): \"check_date_min_distance(Ngày ký, 12, 'months')\"\n"
         "\n"
         "Yêu cầu: Output JSON ARRAY trong thẻ <output>."
     )
@@ -240,10 +244,6 @@ Trích xuất dữ liệu và trả về JSON trong thẻ <output>:"""
     except Exception as e:
         logger.error(f"Lỗi trích xuất dữ liệu: {e}")
         return None
-
-async def translate_rule_for_field(rule_text: str, field_name: str, selected_helpers: List[str]) -> Optional[List[Dict[str, Any]]]:
-    """Dịch lẻ từng field (giữ lại để hỗ trợ Update v1.5 tương lai)"""
-    return None
 
 async def map_data_to_plan(required_fields: List[str], data_keys: List[str]) -> Optional[Dict[str, str]]:
     """

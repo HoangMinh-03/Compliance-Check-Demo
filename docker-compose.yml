@@ -1,0 +1,24 @@
+services:
+  compliance-backend:
+    build: .
+    container_name: compliance-checker
+    # Tự động nạp biến môi trường từ file .env hiện có
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    # Mount code và dữ liệu ra máy thật
+    volumes:
+      # Mount toàn bộ code để hỗ trợ hot-reload khi bạn sửa code ở máy thật
+      - .:/app
+      # Gắn cứng thư mục lưu trữ để dữ liệu không bị mất khi xóa container
+      - ./storage:/app/storage
+      - ./temp_uploads:/app/temp_uploads
+    # Đặt PYTHONPATH để FastAPI có thể import các module từ thư mục src/
+    environment:
+      - PYTHONPATH=.
+    restart: unless-stopped
+
+networks:
+  default:
+    name: compliance-network

@@ -669,3 +669,42 @@
                 </div>
             `;
         }
+
+        // --- Demo Initialization ---
+        function initDemoData() {
+            const demoRules = `Số hợp đồng không được để trống
+Thời điểm ký kết văn bản phải tuân thủ định dạng ngày-tháng-năm (dd-mm-yyyy) và tuyệt đối không được ghi nhận sau ngày hiện tại của hệ thống.
+Để đảm bảo tính đồng bộ với hệ thống quản lý thông tin khách hàng (CIF), Tên khách hàng phải được viết hoa toàn bộ, chỉ chứa ký tự chữ cái Alphabet và dấu cách.
+Thông tin về ngày sinh phải được ghi chép đầy đủ theo định dạng chuẩn để phục vụ công tác xác minh nhân thân.
+Số CCCD của người thụ hưởng bắt buộc phải chứa đúng 12 ký tự số và không chứa ký tự lạ
+Giá trị hạn mức tín dụng phải là số dương và không được vượt quá 5.000.000.000 VND.
+Lãi xuất thỏa thuận phải được biểu diễn dưới dạng số, đảm bảo không vượt quá mức trần 20 và có độ dài chuỗi không quá 4 ký tự.
+Nhằm đảm bảo tính minh bạch trong luồng phê duyệt, trường Trạng thái hồ sơ bắt buộc phải là ‘Đang duyệt’ hoặc ‘Đã duyệt’, không được để trống.
+Thực hiện quy định tại Điều 21 Bộ luật Dân sự, trường hợp khách hàng cá nhân có Ngày tháng năm sinh xác định chủ thể chưa đủ 18 tuổi tại thời điểm ký , yêu cầu bắt buộc phải bổ sung thông tin Người đại diện theo pháp luật.
+Hợp đồng chỉ được coi là có giá trị pháp lý khi thông tin Chữ ký đã được xác lập; trong trường hợp trường này để trống, yêu cầu phải có thông tin Cơ quan ban hành đóng dấu xác nhận thay thế.
+Ngày hết hạn phải nằm sau Ngày ký và cách ngày ký tối thiếu 180 ngày để đảm bảo kế hoạch thu hồi vốn, nếu Phương thức giải ngân là 'Giải ngân một lần’`;
+
+            const demoData = {
+                "Số hợp đồng": "NH-2026-XDF",
+                "Ngày ký": "02-04-2026",
+                "Tên khách hàng": "LÊ HOÀNG MINH",
+                "Ngày tháng năm sinh": "15-10-2012",
+                "Số tiền": "1200000000",
+                "Trạng thái": "Chờ giải ngân",
+                "Ngày hết hạn": "02-06-2026",
+                "Lãi suất": "10.5",
+                "Người đại diện": "Nguyễn Văn A",
+                "Cơ quan ban hành": "Ngân hàng TMCP Việt Nam",
+                "Chữ ký": "",
+                "Phương thức giải ngân": "Giải ngân một lần"
+            };
+
+            if (rulesContent) rulesContent.value = demoRules;
+            fillDataFields(demoData);
+            statusBadge.innerText = 'Dữ liệu demo đã sẵn sàng';
+        }
+
+        // Khởi chạy demo sau khi trang load
+        setTimeout(initDemoData, 500);
+    });
+</script>

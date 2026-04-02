@@ -160,11 +160,17 @@ def check_if(condition: Any, helper_result: Any) -> Tuple[bool, str]:
     cond = condition[0] if isinstance(condition, tuple) and len(condition) == 2 else condition
     
     if cond:
+        # Nếu helper_result đã là một tuple (kết quả từ helper khác chưa bị resolve_arg bóc tách)
         if isinstance(helper_result, tuple) and len(helper_result) == 2:
             return helper_result
-        # Nếu helper_result không phải tuple nhưng condition True, 
-        # có thể là do helper được gọi thành công nhưng không trả về tuple (hiếm gặp với registry)
-        return True, ""
+        
+        # Nếu helper_result là boolean (do resolve_arg đã bóc tách tuple hoặc helper trả về bool)
+        if isinstance(helper_result, bool):
+            return helper_result, "" if helper_result else "Điều kiện kiểm tra lồng nhau không thỏa mãn"
+            
+        # Trường hợp helper_result là một giá trị khác (VD: kết quả tính toán)
+        return bool(helper_result), "" if bool(helper_result) else "Giá trị kiểm tra không hợp lệ"
+        
     return True, ""
 
 @registry.register(is_pure=True, description="Lấy năm hiện tại.")
@@ -198,16 +204,22 @@ def calculate_age(birth_year: Union[int, str]) -> int:
     except (ValueError, TypeError):
         return -1
 
-@registry.register(is_pure=True, description="So sánh bằng giữa hai giá trị (hỗ trợ %).")
+@registry.register(is_pure=True, description="So sánh bằng giữa hai giá trị (hỗ trợ cả số và chuỗi).")
 def check_logic_equal(val1: Any, val2: Any) -> Tuple[bool, str]:
+    # Thử so sánh số trước
     try:
         v1 = _parse_value(val1)
         v2 = _parse_value(val2)
         if abs(v1 - v2) < 1e-9:
             return True, ""
-        return False, f"Giá trị '{val1}' không khớp với '{val2}'"
     except (ValueError, TypeError):
-        return False, f"Không thể so sánh bằng giữa '{val1}' và '{val2}'"
+        # Nếu không phải số, chuyển sang so sánh chuỗi
+        pass
+
+    if str(val1).strip() == str(val2).strip():
+        return True, ""
+
+    return False, f"Giá trị '{val1}' không khớp với '{val2}'"
 
 @registry.register(is_pure=True, description="Kiểm tra giá trị 1 lớn hơn giá trị 2.")
 def check_logic_greater(val1: Any, val2: Any) -> Tuple[bool, str]:
@@ -255,43 +267,48 @@ def check_date_after(date1: str, date2: str, date_format: str = "%d-%m-%Y") -> T
     except (ValueError, TypeError):
         return False, f"Lỗi định dạng ngày khi so sánh '{date1}' và '{date2}'"
 
-@registry.register(is_pure=True, description="Tính khoảng cách giữa hai ngày theo đơn vị (days, months, years). date_diff(d1, d2, unit)")
+@registry.register(is_pure=True, description="Tính khoảng cách giữa hai ngày (date1 - date2) theo đơn vị (days, months, years).")
 def date_diff(date1: str, date2: str, unit: str = "months", date_format: str = "%d-%m-%Y") -> float:
     try:
         clean_format = str(date_format).replace('format=', '').strip('"\'')
         d1 = datetime.strptime(str(date1), clean_format)
         d2 = datetime.strptime(str(date2), clean_format)
         
-        diff_days = (d1 - d2).days
         if unit == "days":
-            return float(diff_days)
+            return float((d1 - d2).days)
         elif unit == "months":
-            return float(diff_days / 30.44) # Trung bình ngày trong tháng
+            # Tính tổng số tháng chênh lệch
+            return float((d1.year - d2.year) * 12 + (d1.month - d2.month))
         elif unit == "years":
-            return float(diff_days / 365.25)
-        return float(diff_days)
+            diff_years = d1.year - d2.year
+            # Điều chỉnh nếu chưa đủ năm (so sánh tháng và ngày)
+            if (d1.month, d1.day) < (d2.month, d2.day):
+                diff_years -= 1
+            return float(diff_years)
+        return float((d1 - d2).days)
     except:
         return 0.0
 
-@registry.register(description="Kiểm tra ngày cách ngày tham chiếu ít nhất một khoảng (min_dist). check_date_min_distance(ref_date, min_dist, unit)")
-def check_date_min_distance(value: str, ref_date: str, min_dist: Any, unit: str = "months", date_format: str = "%d-%m-%Y") -> Tuple[bool, str]:
+@registry.register(description="Kiểm tra khoảng cách giữa trường hiện tại và ngày tham chiếu phải ÍT NHẤT là min_dist (tính tuyệt đối, không bao gồm thứ tự trước sau).")
+def check_date_min_distance(value: str, reference_date: str, min_dist: Any, unit: str = "months", date_format: str = "%d-%m-%Y") -> Tuple[bool, str]:
     try:
-        dist = date_diff(value, ref_date, unit, date_format)
+        # Lấy trị tuyệt đối của khoảng cách để không quan trọng ngày nào trước ngày nào
+        dist = abs(date_diff(value, reference_date, unit, date_format))
         f_min = float(min_dist)
         if dist >= f_min:
             return True, ""
-        return False, f"Khoảng cách ({dist:.1f} {unit}) nhỏ hơn mức tối thiểu {f_min}"
+        return False, f"Khoảng cách ({dist:.1f} {unit}) nhỏ hơn mức tối thiểu yêu cầu ({f_min} {unit})"
     except:
         return False, "Lỗi tính toán khoảng cách ngày"
 
-@registry.register(description="Kiểm tra ngày cách ngày tham chiếu tối đa một khoảng (max_dist). check_date_max_distance(ref_date, max_dist, unit)")
-def check_date_max_distance(value: str, ref_date: str, max_dist: Any, unit: str = "months", date_format: str = "%d-%m-%Y") -> Tuple[bool, str]:
+@registry.register(description="Kiểm tra khoảng cách giữa trường hiện tại và ngày tham chiếu TỐI ĐA là max_dist (tính tuyệt đối, không bao gồm thứ tự trước sau).")
+def check_date_max_distance(value: str, reference_date: str, max_dist: Any, unit: str = "months", date_format: str = "%d-%m-%Y") -> Tuple[bool, str]:
     try:
-        dist = date_diff(value, ref_date, unit, date_format)
+        dist = abs(date_diff(value, reference_date, unit, date_format))
         f_max = float(max_dist)
         if dist <= f_max:
             return True, ""
-        return False, f"Khoảng cách ({dist:.1f} {unit}) lớn hơn mức tối đa {f_max}"
+        return False, f"Khoảng cách ({dist:.1f} {unit}) lớn hơn mức tối đa cho phép ({f_max} {unit})"
     except:
         return False, "Lỗi tính toán khoảng cách ngày"
 
@@ -336,6 +353,26 @@ def is_empty(value: Any) -> bool:
     if value is None: return True
     val_str = str(value).strip()
     return val_str == "" or val_str.lower() in ["none", "null", "nan"]
+
+@registry.register(description="Kiểm tra định dạng chữ hoa (upper), chữ thường (lower), hoặc viết hoa chữ cái đầu (capital).")
+def check_string_case(value: str, case_type: str = "upper") -> Tuple[bool, str]:
+    val = str(value).strip()
+    if not val: return True, ""
+    
+    case_type = str(case_type).lower().strip()
+    if case_type == "upper":
+        if val.isupper(): return True, ""
+        return False, f"'{val}' không phải là chữ hoa toàn bộ"
+    elif case_type == "lower":
+        if val.islower(): return True, ""
+        return False, f"'{val}' không phải là chữ thường toàn bộ"
+    elif case_type == "capital" or case_type == "title":
+        # check if the first letter is uppercase and the rest are lowercase (simple check)
+        # Or use .istitle() which is more robust for multi-word
+        if val.istitle(): return True, ""
+        return False, f"'{val}' không phải là định dạng viết hoa chữ cái đầu"
+    
+    return False, f"Loại kiểm tra case '{case_type}' không hợp lệ (hỗ trợ: upper, lower, capital)"
 
 @registry.register(description="Kiểm tra CCCD Việt Nam (12 số, đúng mã tỉnh).")
 def check_cccd_vn(value: str) -> Tuple[bool, str]:

@@ -4,6 +4,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from src.api.routes import router as compliance_router
+from src.core.helpers import registry
+
 
 # Configure logging
 logging.basicConfig(
@@ -29,4 +31,5 @@ async def get_style():
     return FileResponse("main_app/style.css")
 
 if __name__ == "__main__":
+    #print(registry.get_llm_metadata())
     uvicorn.run("src.main:app", host="0.0.0.0", port=8000, reload=True)
