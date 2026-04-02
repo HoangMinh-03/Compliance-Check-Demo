@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "Ngày ký": "02-04-2026",
         "Tên khách hàng": "Lê Minh",
         "Ngày tháng năm sinh": "15-11-1999",
+        "CCCD ": "001095000123",
         "Trạng thái": "Đang duyệt",
         "Ngày hết hạn": "02-06-2026",
         "Lãi suất": "10.5",
