@@ -267,25 +267,29 @@ def check_date_after(date1: str, date2: str, date_format: str = "%d-%m-%Y") -> T
     except (ValueError, TypeError):
         return False, f"Lỗi định dạng ngày khi so sánh '{date1}' và '{date2}'"
 
-@registry.register(is_pure=True, description="Tính khoảng cách giữa hai ngày (date1 - date2) theo đơn vị (days, months, years).")
+@registry.register(is_pure=True, description="Tính khoảng cách (giá trị tuyệt đối) giữa hai ngày (date1, date2) theo đơn vị (days, months, years).")
 def date_diff(date1: str, date2: str, unit: str = "months", date_format: str = "%d-%m-%Y") -> float:
     try:
         clean_format = str(date_format).replace('format=', '').strip('"\'')
         d1 = datetime.strptime(str(date1), clean_format)
         d2 = datetime.strptime(str(date2), clean_format)
         
+        diff_val = 0.0
         if unit == "days":
-            return float((d1 - d2).days)
+            diff_val = float((d1 - d2).days)
         elif unit == "months":
             # Tính tổng số tháng chênh lệch
-            return float((d1.year - d2.year) * 12 + (d1.month - d2.month))
+            diff_val = float((d1.year - d2.year) * 12 + (d1.month - d2.month))
         elif unit == "years":
             diff_years = d1.year - d2.year
             # Điều chỉnh nếu chưa đủ năm (so sánh tháng và ngày)
             if (d1.month, d1.day) < (d2.month, d2.day):
                 diff_years -= 1
-            return float(diff_years)
-        return float((d1 - d2).days)
+            diff_val = float(diff_years)
+        else:
+            diff_val = float((d1 - d2).days)
+            
+        return abs(diff_val)
     except:
         return 0.0
 
@@ -348,11 +352,39 @@ def check_logic_not(value: Any) -> bool:
     val = value[0] if isinstance(value, tuple) and len(value) == 2 else value
     return not bool(val)
 
+@registry.register(is_pure=True, description="Thực hiện phép AND logic giữa các điều kiện. Trả về True nếu tất cả đều đúng. check_and(cond1, cond2, ...)")
+def check_and(*args) -> Tuple[bool, str]:
+    if not args:
+        return True, ""
+    for i, arg in enumerate(args):
+        # Resolve any tuple result if passed directly
+        val = arg[0] if isinstance(arg, tuple) and len(arg) == 2 else arg
+        if not bool(val):
+            return False, f"Điều kiện thứ {i+1} không thỏa mãn"
+    return True, ""
+
+@registry.register(is_pure=True, description="Thực hiện phép OR logic giữa các điều kiện. Trả về True nếu ít nhất một cái đúng. check_or(cond1, cond2, ...)")
+def check_or(*args) -> Tuple[bool, str]:
+    if not args:
+        return True, ""
+    for arg in args:
+        val = arg[0] if isinstance(arg, tuple) and len(arg) == 2 else arg
+        if bool(val):
+            return True, ""
+    return False, "Không có điều kiện nào thỏa mãn"
+
 @registry.register(is_pure=True, description="Kiểm tra một giá trị có trống hay không (trả về True nếu trống).")
 def is_empty(value: Any) -> bool:
     if value is None: return True
     val_str = str(value).strip()
     return val_str == "" or val_str.lower() in ["none", "null", "nan"]
+
+@registry.register(is_pure=True, description="Lấy giá trị tuyệt đối của một số.")
+def check_logic_abs(value: Any) -> float:
+    try:
+        return abs(_parse_value(value))
+    except:
+        return 0.0
 
 @registry.register(description="Kiểm tra định dạng chữ hoa (upper), chữ thường (lower), hoặc viết hoa chữ cái đầu (capital).")
 def check_string_case(value: str, case_type: str = "upper") -> Tuple[bool, str]:

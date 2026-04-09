@@ -9,3 +9,12 @@ Nhằm đảm bảo tính minh bạch trong luồng phê duyệt, trường Tr�
 Thực hiện quy định tại Điều 21 Bộ luật Dân sự, trường hợp khách hàng cá nhân có Ngày tháng năm sinh xác định chủ thể chưa đủ 18 tuổi tại thời điểm ký , yêu cầu bắt buộc phải bổ sung thông tin Người đại diện theo pháp luật.
 Hợp đồng chỉ được coi là có giá trị pháp lý khi thông tin Chữ ký đã được xác lập; trong trường hợp trường này để trống, yêu cầu phải có thông tin Cơ quan ban hành đóng dấu xác nhận thay thế.
 Ngày hết hạn phải nằm sau Ngày ký và cách ngày ký tối thiếu 180 ngày để đảm bảo kế hoạch thu hồi vốn, nếu Phương thức giải ngân là 'Giải ngân một lần’
+
+
+Khách hàng được coi là 'Ưu tiên' nếu: (Số dư tài khoản > 1 tỷ VNĐ VÀ Tổng chi tiêu tháng > 100 triệu) HOẶC (Đã tham gia hệ thống trên 10 năm).
+
+Nếu là khách hàng 'Ưu tiên': Lãi suất vay tối đa là 8%/năm. Nếu KHÔNG phải khách hàng 'Ưu tiên': Lãi suất vay tối đa là 12%/năm.
+
+Đối với mọi trường hợp có Lãi suất vay thực tế > 10%, bắt buộc phải có trường 'Chu_ky_Giam_doc' và không được để trống.
+
+Tên khách hàng phải được VIẾT HOA TOÀN BỘ, không chứa ký tự đặc biệt và 'Mã số thuế' phải đúng định dạng (10 hoặc 14 số).

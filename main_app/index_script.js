@@ -89,14 +89,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- UI Helper Functions ---
     function renderPlanBlocks(plan, metadata = {}) {
         planBlocksContainer.innerHTML = '';
+        console.log("Compliance Checker - Plan received for rendering:", plan);
 
-        if (!plan || Object.keys(plan).length === 0) {
+        if (!plan) {
+            planBlocksContainer.innerHTML = '<p class="text-sm text-muted-foreground italic text-center py-4">Kế hoạch trống.</p>';
+            return;
+        }
+
+        // Chuyển đổi plan thành array các entries một cách an toàn
+        let planEntries = [];
+        try {
+            if (Array.isArray(plan)) {
+                // Nếu LLM trả về array (hiếm gặp nhưng có thể), thử map sang định dạng entries
+                planEntries = plan.map((item, index) => {
+                    if (typeof item === 'object' && item !== null) {
+                        const keys = Object.keys(item);
+                        return [keys[0], item[keys[0]]];
+                    }
+                    return [`Trường ${index + 1}`, item];
+                });
+            } else if (typeof plan === 'object' && plan !== null) {
+                planEntries = Object.entries(plan);
+            } else {
+                console.error("Unknown plan format:", typeof plan, plan);
+                planBlocksContainer.innerHTML = `<p class="text-sm text-rose-400 italic text-center py-4">Định dạng kế hoạch không hợp lệ (${typeof plan}).</p>`;
+                return;
+            }
+        } catch (err) {
+            console.error("Error processing plan entries:", err);
+            planBlocksContainer.innerHTML = '<p class="text-sm text-rose-400 italic text-center py-4">Lỗi khi xử lý dữ liệu kế hoạch.</p>';
+            return;
+        }
+
+        if (planEntries.length === 0) {
             planBlocksContainer.innerHTML = '<p class="text-sm text-muted-foreground italic text-center py-4">Không có quy tắc nào được định nghĩa.</p>';
             return;
         }
 
-        Object.entries(plan).forEach(([field, rules]) => {
-            const rulesArray = Array.isArray(rules) ? rules : [rules];
+        planEntries.forEach(([field, rules]) => {
+            const rulesArray = Array.isArray(rules) ? rules : (rules ? [rules] : []);
             const hasRules = rulesArray.length > 0;
 
             const block = document.createElement('div');

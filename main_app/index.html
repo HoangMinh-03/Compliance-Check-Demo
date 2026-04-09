@@ -58,6 +58,7 @@
         }
     </script>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:,">
 </head>
 
 <body class="bg-background text-foreground antialiased selection:bg-primary/30">
@@ -103,25 +104,13 @@
                         </div>
                         <div class="p-6 flex-1 flex flex-col relative">
                             <textarea id="rulesContent" placeholder="Nhập luật cần xử lý tại đây..."
-                                class="flex-1 w-full resize-none bg-input/50 border border-border/50 rounded-xl p-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-300">Căn cứ quy định về quản lý hồ sơ tín dụng, mọi thỏa thuận phải được định danh bằng Số hợp đồng; trường hợp thiếu thông tin này, hệ thống sẽ từ chối xác lập giao dịch.
+                                class="flex-1 w-full resize-none bg-input/50 border border-border/50 rounded-xl p-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-300">Khách hàng được coi là 'Ưu tiên' nếu: (Số dư tài khoản > 1 tỷ VNĐ VÀ Tổng chi tiêu tháng > 100 triệu) HOẶC (Đã tham gia hệ thống trên 10 năm).
 
-Thời điểm ký kết văn bản phải tuân thủ định dạng ngày-tháng-năm và tuyệt đối không được ghi nhận sau ngày hiện tại của hệ thống.
+Nếu là khách hàng 'Ưu tiên': Lãi suất vay tối đa là 8%/năm. Nếu KHÔNG phải khách hàng 'Ưu tiên': Lãi suất vay tối đa là 12%/năm.
 
-Để đảm bảo tính đồng bộ với hệ thống quản lý thông tin khách hàng (CIF), Tên khách hàng phải được viết hoa toàn bộ, chỉ chứa ký tự chữ cái Alphabet và dấu cách.
+Đối với mọi trường hợp có Lãi suất vay thực tế > 10%, bắt buộc phải có trường 'Chu_ky_Giam_doc' và không được để trống.
 
-Thông tin về ngày sinh phải được ghi chép đầy đủ theo định dạng chuẩn để phục vụ công tác xác minh nhân thân.
-
-Số CCCD của người thụ hưởng bắt buộc phải chứa đúng 12 ký tự số và không chứa ký tự lạ
-
-Lãi xuất thỏa thuận phải được biểu diễn dưới dạng số, đảm bảo không vượt quá mức trần 20 và có độ dài chuỗi không quá 4 ký tự.
-
-Trường Trạng thái không được để trống và chỉ có thể là 'Đã duyệt' hoặc 'Đang duyệt'. 
-
-Thực hiện quy định tại Điều 21 Bộ luật Dân sự, trường hợp khách hàng cá nhân có Ngày tháng năm sinh xác định chủ thể chưa đủ 18 tuổi tại thời điểm ký , yêu cầu bắt buộc phải bổ sung thông tin Người đại diện theo pháp luật.
-
-Trong trường hợp không có chữ ký thì yêu cầu phải có thông tin Cơ quan ban hành đóng dấu xác nhận thay thế.
-
-Ngày hết hạn phải nằm sau Ngày ký và cách ngày ký tối thiếu 180 ngày để đảm bảo kế hoạch thu hồi vốn, nếu Phương thức giải ngân là 'Giải ngân một lần’</textarea>
+Tên khách hàng phải được VIẾT HOA TOÀN BỘ, không chứa ký tự đặc biệt và 'Mã số thuế' phải đúng định dạng (10 hoặc 14 số).</textarea>
                             <div class="mt-6 flex justify-end">
                                 <button id="sendButton"
                                     class="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 bg-gradient-to-r from-primary to-blue-600 text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
