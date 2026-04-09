@@ -13,4 +13,3 @@ storage/*.json
 .idea/
 *.log
 Debugging Compliance Plan Rendering.md
-main_app/index_script_v2.6.2.js
