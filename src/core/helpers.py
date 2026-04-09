@@ -150,7 +150,7 @@ def check_currency_format(value: str) -> Tuple[bool, str]:
         return True, ""
     return False, f"'{value}' không đúng định dạng tiền tệ"
 
-@registry.register(is_pure=True, description="Thực hiện kiểm tra nếu điều kiện đúng. check_if(condition, helper_result)")
+@registry.register(is_pure=True, description="Thực hiện kiểm tra nếu điều kiện đúng. Cú pháp: check_if(condition_call, result_call). Điều kiện thường là các hàm check_logic_... hoặc check_and/or.")
 def check_if(condition: Any, helper_result: Any) -> Tuple[bool, str]:
     """
     Nếu condition là True, trả về kết quả của helper_result.
@@ -204,7 +204,7 @@ def calculate_age(birth_year: Union[int, str]) -> int:
     except (ValueError, TypeError):
         return -1
 
-@registry.register(is_pure=True, description="So sánh bằng giữa hai giá trị (hỗ trợ cả số và chuỗi).")
+@registry.register(is_pure=True, description="So sánh bằng giữa hai giá trị. Tham số 1: Giá trị cần kiểm tra, Tham số 2: Giá trị mốc để so sánh.")
 def check_logic_equal(val1: Any, val2: Any) -> Tuple[bool, str]:
     # Thử so sánh số trước
     try:
@@ -221,7 +221,7 @@ def check_logic_equal(val1: Any, val2: Any) -> Tuple[bool, str]:
 
     return False, f"Giá trị '{val1}' không khớp với '{val2}'"
 
-@registry.register(is_pure=True, description="Kiểm tra giá trị 1 lớn hơn giá trị 2.")
+@registry.register(is_pure=True, description="Kiểm tra giá trị 1 LỚN HƠN giá trị 2. Tham số 1: Số cần kiểm tra, Tham số 2: Giá trị mốc.")
 def check_logic_greater(val1: Any, val2: Any) -> Tuple[bool, str]:
     try:
         v1 = _parse_value(val1)
@@ -232,7 +232,7 @@ def check_logic_greater(val1: Any, val2: Any) -> Tuple[bool, str]:
     except (ValueError, TypeError):
         return False, f"Không thể so sánh lớn hơn giữa '{val1}' và '{val2}'"
     
-@registry.register(is_pure=True, description="Kiểm tra giá trị 1 nhỏ hơn giá trị 2.")
+@registry.register(is_pure=True, description="Kiểm tra giá trị 1 NHỎ HƠN giá trị 2. Tham số 1: Số cần kiểm tra, Tham số 2: Giá trị mốc.")
 def check_logic_smaller(val1: Any, val2: Any) -> Tuple[bool, str]:
     try:
         v1 = _parse_value(val1)
@@ -352,7 +352,7 @@ def check_logic_not(value: Any) -> bool:
     val = value[0] if isinstance(value, tuple) and len(value) == 2 else value
     return not bool(val)
 
-@registry.register(is_pure=True, description="Thực hiện phép AND logic giữa các điều kiện. Trả về True nếu tất cả đều đúng. check_and(cond1, cond2, ...)")
+@registry.register(is_pure=True, description="Thực hiện phép phép AND logic giữa nhiều điều kiện. Trả về True nếu tất cả đều đúng. Cú pháp: check_and(cond1_call, cond2_call, ...)")
 def check_and(*args) -> Tuple[bool, str]:
     if not args:
         return True, ""
@@ -363,7 +363,7 @@ def check_and(*args) -> Tuple[bool, str]:
             return False, f"Điều kiện thứ {i+1} không thỏa mãn"
     return True, ""
 
-@registry.register(is_pure=True, description="Thực hiện phép OR logic giữa các điều kiện. Trả về True nếu ít nhất một cái đúng. check_or(cond1, cond2, ...)")
+@registry.register(is_pure=True, description="Thực hiện phép phép OR logic giữa nhiều điều kiện. Trả về True nếu ít nhất một cái đúng. Cú pháp: check_or(cond1_call, cond2_call, ...)")
 def check_or(*args) -> Tuple[bool, str]:
     if not args:
         return True, ""

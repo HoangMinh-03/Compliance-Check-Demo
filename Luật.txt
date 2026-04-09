@@ -10,8 +10,7 @@ Thực hiện quy định tại Điều 21 Bộ luật Dân sự, trường hợ
 Hợp đồng chỉ được coi là có giá trị pháp lý khi thông tin Chữ ký đã được xác lập; trong trường hợp trường này để trống, yêu cầu phải có thông tin Cơ quan ban hành đóng dấu xác nhận thay thế.
 Ngày hết hạn phải nằm sau Ngày ký và cách ngày ký tối thiếu 180 ngày để đảm bảo kế hoạch thu hồi vốn, nếu Phương thức giải ngân là 'Giải ngân một lần’
 
-
-Khách hàng được coi là 'Ưu tiên' nếu: (Số dư tài khoản > 1 tỷ VNĐ VÀ Tổng chi tiêu tháng > 100 triệu) HOẶC (Đã tham gia hệ thống trên 10 năm).
+Trường 'Khách hàng' phải có giá trị là 'Ưu tiên' nếu (Số dư tài khoản > 1 tỷ VNĐ VÀ Tổng chi tiêu tháng > 100 triệu) HOẶC (Đã tham gia hệ thống trên 10 năm).
 
 Nếu là khách hàng 'Ưu tiên': Lãi suất vay tối đa là 8%/năm. Nếu KHÔNG phải khách hàng 'Ưu tiên': Lãi suất vay tối đa là 12%/năm.
 

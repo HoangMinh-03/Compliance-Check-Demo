@@ -1,0 +1,43 @@
+{
+    "Số hợp đồng": [
+        "check_not_empty"
+    ],
+    "Ngày ký": [
+        "check_date_format('%d-%m-%Y')",
+        "check_date_before(get_current_date())"
+    ],
+    "Tên khách hàng": [
+        "check_string_case('upper')",
+        "check_alphabetical"
+    ],
+    "Ngày sinh": [
+        "check_date_format('%d-%m-%Y')"
+    ],
+    "Số CCCD": [
+        "check_cccd_vn"
+    ],
+    "Lãi suất thỏa thuận": [
+        "check_numeric",
+        "check_range(0, 20)",
+        "check_length(1, 4)"
+    ],
+    "Trạng thái": [
+        "check_not_empty",
+        "check_regex('^(Đã duyệt|Đang duyệt)$')"
+    ],
+    "Ngày tháng năm sinh": [
+        "check_if(check_logic_smaller(calculate_age(extract_year(Trường hiện tại)), 18), check_not_empty)"
+    ],
+    "Người đại diện theo pháp luật": [
+        "check_if(check_logic_smaller(calculate_age(extract_year(Ngày sinh)), 18), check_not_empty)"
+    ],
+    "Cơ quan ban hành": [
+        "check_if(is_empty(Chữ ký), check_not_empty)"
+    ],
+    "Ngày hết hạn": [
+        "check_date_after(Ngày ký)",
+        "check_if(check_logic_equal(Phương thức giải ngân, 'Giải ngân một lần'), check_date_min_distance(Ngày ký, 180, 'days'))"
+    ],
+    "Chữ ký": [],
+    "Phương thức giải ngân": []
+}

@@ -1,379 +1,250 @@
 import os
 import json
 import logging
-import re
+import asyncio
 from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
-from openai import AsyncOpenAI
+from smolagents import Tool, CodeAgent, ToolCallingAgent, OpenAIServerModel
 from src.core.helpers import registry
 
 load_dotenv(override=True)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 LLM_API_BASE = os.getenv("LLM_API_BASE")
 LLM_API_KEY = os.getenv("LLM_API_KEY")
 LLM_MODEL = os.getenv("LLM_MODEL")
 
-client = AsyncOpenAI(base_url=LLM_API_BASE, api_key=LLM_API_KEY)
+model = OpenAIServerModel(model_id=LLM_MODEL, api_base=LLM_API_BASE, api_key=LLM_API_KEY)
 
-def clean_json_content(content: str) -> str:
-    if '<output>' in content and '</output>' in content:
-        start = content.find('<output>') + 8
-        end = content.find('</output>')
-        content = content[start:end].strip()
-    code_block_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', content)
-    if code_block_match: content = code_block_match.group(1).strip()
-    return content
+# ==========================================
+# AGENT V2 CORE TOOLS
+# ==========================================
+
+class PlanBuilderTool(Tool):
+    """Công cụ để đăng ký danh sách các hàm kiểm tra cho một trường dữ liệu (field)."""
+    name = "add_rule_plan"
+    description = "Đăng ký danh sách các hàm kiểm tra cho một trường dữ liệu (field)."
+    inputs = {
+        "field_name": {"type": "string", "description": "Tên trường dữ liệu (chính xác từ văn bản)."},
+        "helpers": {"type": "array", "items": {"type": "string"}, "description": "Danh sách các chuỗi gọi hàm helper."}
+    }
+    output_type = "string"
+    def __init__(self, accumulated_plan: Dict[str, List[str]]):
+        self.accumulated_plan = accumulated_plan
+        super().__init__()
+    def forward(self, field_name: str, helpers: List[str]) -> str:
+        # Tự động sửa lỗi nếu LLM gọi nhầm tên (như add_rule_plan)
+        self.accumulated_plan[field_name] = helpers
+        return f"Đã thêm quy tắc cho trường '{field_name}'."
+
+class ExtractionTool(Tool):
+    """Công cụ để trích xuất dữ liệu hàng loạt."""
+    name = "record_extracted_dict"
+    description = "Ghi lại TOÀN BỘ các trường tìm được dưới dạng 1 dictionary {tên_trường: giá_trị}."
+    inputs = {
+        "data_dict": {"type": "object", "description": "Dictionary chứa các cặp {tên: giá_trị}."}
+    }
+    output_type = "string"
+    def __init__(self, storage: Dict[str, str]):
+        self.storage = storage
+        super().__init__()
+    def forward(self, data_dict: dict) -> str:
+        self.storage.update(data_dict)
+        return f"Đã ghi nhận {len(data_dict)} trường dữ liệu."
+
+class MappingTool(Tool):
+    """Công cụ để ánh xạ dữ liệu hàng loạt."""
+    name = "record_mapping_dict"
+    description = "Ghi lại TOÀN BỘ các ánh xạ dưới dạng 1 dictionary {tên_rules: tên_thực_tế}."
+    inputs = {
+        "mapping_dict": {"type": "object", "description": "Dictionary ánh xạ logic."}
+    }
+    output_type = "string"
+    def __init__(self, mapping: Dict[str, str]):
+        self.mapping = mapping
+        super().__init__()
+    def forward(self, mapping_dict: dict) -> str:
+        self.mapping.update(mapping_dict)
+        return f"Đã ghi lại {len(mapping_dict)} ánh xạ."
+
+class MetadataTool(Tool):
+    """Công cụ để tạo metadata hàng loạt."""
+    name = "record_metadata_dict"
+    description = "Ghi lại TOÀN BỘ metadata dưới dạng dictionary {tên: {'description': '...', 'sample_value': '...'}}."
+    inputs = {
+        "metadata_dict": {"type": "object", "description": "Dictionary chứa thông tin hiển thị UI."}
+    }
+    output_type = "string"
+    def __init__(self, metadata_storage: Dict[str, Dict[str, str]]):
+        self.metadata_storage = metadata_storage
+        super().__init__()
+    def forward(self, metadata_dict: dict) -> str:
+        self.metadata_storage.update(metadata_dict)
+        return f"Đã ghi lại metadata cho {len(metadata_dict)} trường."
+
+def get_helper_definitions() -> str:
+    return registry.get_llm_metadata()
+
+SYNTAX_SPECIFICATION = """
+QUY TẮC CÚ PHÁP BẮT BUỘC (STRICT GRAMMAR):
+1. ĐỊNH DẠNG: Chỉ sử dụng các lời gọi hàm lồng nhau. VD: func1(func2(arg), arg2).
+2. CẤM TOÁN TỬ: Tuyệt đối KHÔNG dùng '>', '<', '==', '!=', 'AND', 'OR', 'NOT', 'if', 'else'.
+3. CẤM BỌC HÀM DƯ THỪA: KHÔNG bọc các giá trị trong check_numeric() hay check_not_empty() khi truyền vào các hàm check_logic_... vì các hàm này đã tự xử lý validate.
+4. THỜI GIAN: Dùng date_diff('Ngày A', 'Ngày B', 'years') để tính năm/tuổi. KHÔNG tự trừ năm.
+5. LOGIC MAPPING:
+   - Sử dụng check_logic_greater(v1, v2) thay cho v1 > v2.
+   - Sử dụng check_logic_equal(v1, v2) thay cho v1 == v2.
+   - Sử dụng check_and/or cho logic kết hợp.
+6. TÊN BIẾN & DẤU NHÁY:
+   - Tuyệt đối KHÔNG bọc Tên Biến trong dấu nháy. VD: dùng Số nhà, KHÔNG dùng 'Số nhà'.
+   - CHỈ dùng dấu nháy cho các Giá trị Hằng số hoặc Kết quả mong muốn. VD: 'VIP', '01-01-2024'.
+"""
+
+# ==========================================
+# AGENT V2 IMPLEMENTATIONS
+# ==========================================
 
 async def translate_rules(rules_text: str) -> Optional[Dict[str, List[Any]]]:
-    """
-    Sử dụng LLM 2 bước để dịch rules văn bản sang Execution Plan (JSON).
-    Bước 1: Trích xuất logic kiểm tra chính.
-    Bước 2: Bổ sung các trường phụ thuộc (variables) bị thiếu.
-    """
-    helpers_list = registry.get_llm_metadata()
+    """Dịch Rules văn bản sang Execution Plan (CodeAgent - High Precision)."""
+    accumulated_plan = {}
+    builder_tool = PlanBuilderTool(accumulated_plan)
+    # CodeAgent tự kiểm tra mã nguồn giúp tạo logic lồng nhau chuẩn xác
+    agent = CodeAgent(tools=[builder_tool], model=model, verbosity_level=1, additional_authorized_imports=[], max_steps=10)
+    
+    helper_metadata = get_helper_definitions()
+    task = f"""Dịch RULES thành Execution Plan. 
+LƯU Ý: Mỗi trường dữ liệu (Khách hàng, Lãi suất,...) PHẢI được gọi qua công cụ 'add_rule_plan' RIÊNG BIỆT.
+{SYNTAX_SPECIFICATION}
 
-    # --- BƯỚC 1: TRÍCH XUẤT LOGIC CHÍNH ---
-    step1_system_prompt = (
-        "Bạn là một Chuyên gia Logic học.\n"
-        "Nhiệm vụ: Phân tích quy tắc văn bản và chuyển đổi thành Execution Plan (JSON).\n"
-        "\n"
-        "=== QUY TẮC QUAN TRỌNG ===\n"
-        "1. Tên trường (keys) phải lấy TRỰC TIẾP từ văn bản quy tắc.\n"
-        "2. TUYỆT ĐỐI KHÔNG sử dụng cú pháp Python (if, else, and, or, not).\n"
-        "3. TUYỆT ĐỐI KHÔNG dùng toán tử so sánh (<, >, ==, !=, <=, >=). Thay vào đó, hãy sử dụng các hàm helper tương ứng như check_logic_greater, check_logic_equal, check_logic_smaller.\n"
-        "4. CHỈ sử dụng các hàm helper được cung cấp trong danh sách.\n"
-        "5. Cấu trúc JSON: {\"tên_trường\": [\"helper_1\", \"helper_2(args)\", ...]}\n"
-        "6. Tên trường không được bỏ trong dấu ngoặc, phải giữ nguyên y như trong văn bản quy tắc."
-        "7. Giá trị của trường là số thì không cần bỏ trong ngoặc, nhưng nếu là chuỗi thì phải bỏ trong dấu ngoặc đơn.\n"
-        "\n"
-        "=== HƯỚNG DẪN LOGIC ===\n"
-        "- Hàm Validation (vd: check_numeric, check_range): Hệ thống tự động truyền giá trị của trường hiện tại vào tham số đầu tiên.\n"
-        "- Hàm Logic/Pure (vd: calculate_age, check_logic_greater, is_empty): Không tự động nhận giá trị trường. Bạn phải truyền tham số rõ ràng.\n"
-        "- Điều kiện (check_if): Dùng 'check_if(điều_kiện, kết_quả_nếu_đúng)'. \n"
-        "  Ví dụ: \"check_if(is_empty(A), check_not_empty)\"\n"
-        "  Ví dụ khoảng cách ngày (chưa có thứ tự trước sau): \"check_date_min_distance(Ngày ký, 12, 'months')\"\n"
-        "\n"
-        "Yêu cầu: Output JSON trong thẻ <output>."
-    )
+HELPERS:
+{helper_metadata}
 
-    user_prompt = f"""  
-        <helper_functions>
-        {helpers_list}
-        </helper_functions>
-
-        <rules_text>
-        {rules_text}
-        </rules_text>
-
-        Yêu cầu:
-        Dựa trên rules_text, hãy tạo Execution Plan.
-
-        Lưu ý quan trọng:
-        - So sánh trường A với một số: check_logic_greater(Trường A, 100)
-        - So sánh trường A với trường B: check_logic_greater(Trường A, Trường B)
-        - Kiểm tra có điều kiện: check_if(is_empty(Trường A), check_not_empty)
-
-        Ví dụ:
-        Rules:
-        1. Tuổi phải từ 18 đến 60.
-        2. Nếu Số tiền lớn hơn 500 triệu thì phải có Người phê duyệt.
-        3. Ngày kết thúc phải sau Ngày bắt đầu.
-
-        JSON:
-        {{
-            "Tuổi": ["check_numeric", "check_range(18, 60)"],
-            "Người phê duyệt": ["check_if(check_logic_greater(Số tiền, 500000000), check_not_empty)"],
-            "Ngày kết thúc": ["check_date_after(Ngày kết thúc, Ngày bắt đầu)"],
-        }}
-
-        KJSON (trong thẻ <output>):"""
-
-
+RULES:
+{rules_text}"""
+    
     try:
-        response1 = await client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": step1_system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.0
-        )
-        content1 = clean_json_content(response1.choices[0].message.content.strip())
-        if not content1: return None
-        initial_plan = json.loads(initial_plan_str := content1)
-        logger.info(f"Step 1 - Initial Plan: {initial_plan_str}")
+        await asyncio.to_thread(lambda: agent.run(task, reset=True))
+        # Bước 2: Bổ sung các biến phụ thuộc (Dependency Completion)
+        if accumulated_plan:
+            await complete_plan_dependencies(accumulated_plan)
+        return accumulated_plan if accumulated_plan else None
     except Exception as e:
-        logger.error(f"Lỗi Bước 1 (Translate): {e}")
+        logger.error(f"Lỗi CodeAgent (translate_rules): {e}")
         return None
 
-    # --- BƯỚC 2: BƯỚC BỔ SUNG BIẾN PHỤ THUỘC (DEPENDENCIES) ---
-    step2_system_prompt = (
-        "Bạn là một Kỹ sư Kiểm thử Dữ liệu.\n"
-        "Nhiệm vụ: Rà soát Execution Plan và bổ sung các trường dữ liệu bị thiếu.\n"
-        "\n"
-        "QUY TẮC:\n"
-        "1. Duyệt qua TẤT CẢ các hàm trong Plan hiện tại. Nếu một Tên Trường xuất hiện như một tham số bên trong một hàm (ví dụ: 'Ngày sinh' trong calculate_age(Ngày sinh)) nhưng Tên Trường đó chưa có trong danh sách Keys của JSON bạn PHẢI, kiểm tra lại một lần nữa xem nó có chắc chắn không nằm trong các trường đã được quy định không, nếu không thêm nó vào làm Key mới với list rỗng [] (Tên trường phải được giữ nguyên vẹn y như trong hàm).\n"
-        "2. Đảm bảo mọi biến số cần thiết cho logic đều được liệt kê làm key để hệ thống thực hiện ánh xạ.\n"
-        "3. KHÔNG thay đổi logic của các trường đã có.\n"
-        "4. Trả về Execution Plan hoàn thiện dưới dạng JSON trong thẻ <output>."
-    )
+async def complete_plan_dependencies(execution_plan: Dict[str, List[Any]]) -> Dict[str, List[Any]]:
+    """Giai đoạn 2: Tự động tìm và thêm các biến phụ thuộc ẩn trong công thức."""
+    builder_tool = PlanBuilderTool(execution_plan)
+    agent = CodeAgent(tools=[builder_tool], model=model, verbosity_level=1, max_steps=5)
+    
+    helper_metadata = get_helper_definitions()
+    task = f"""Duyệt qua Execution Plan hiện tại và tìm các 'biến phụ thuộc' bị thiếu.
+Biến phụ thuộc là các tên trường (VD: 'Ngày tham gia', 'Lương') được truyền vào làm tham số cho các hàm nhưng CHƯA tồn tại trong danh sách các key của Plan.
 
+LƯU Ý:
+1. Nếu tìm thấy trường chưa có, hãy gọi công cụ add_rule_plan(tên_trường, []) - truyền list rỗng.
+2. KHÔNG thêm các giá trị là chuỗi hằng số (trong dấu nháy), số, hoặc tên hàm helper.
+3. Chỉ tập trung vào các định danh trông giống Tên Trường dữ liệu. Tuyệt đối KHÔNG bọc chúng trong dấu nháy.
+
+PHẠM VI KIỂM TRA:
+{json.dumps(execution_plan, ensure_ascii=False)}
+
+DANH SÁCH HELPER ĐỂ LOẠI TRỪ:
+{helper_metadata}"""
+    
     try:
-        response2 = await client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": step2_system_prompt},
-                {"role": "user", "content": f"Original Rules:\n{rules_text}\n\nInitial Plan:\n{json.dumps(initial_plan, ensure_ascii=False, indent=2)}\n\nHoàn thiện Plan và trả về JSON trong thẻ <output>:"}
-            ],
-            temperature=0.0
-        )
-        content2 = clean_json_content(response2.choices[0].message.content.strip())
-        if not content2: return initial_plan
-        final_plan = json.loads(content2)
-        logger.info(f"Step 2 - Final Plan: {json.dumps(final_plan, ensure_ascii=False)}")
-        return final_plan
+        await asyncio.to_thread(lambda: agent.run(task, reset=True))
+        return execution_plan
     except Exception as e:
-        logger.error(f"Lỗi Bước 2 (Completion): {e}")
-        return initial_plan
+        logger.error(f"Lỗi CodeAgent (complete_dependencies): {e}")
+        return execution_plan
 
 async def translate_single_field_logic(field_name: str, full_rules_text: str) -> Optional[List[str]]:
-    """
-    Sử dụng LLM để chỉ dịch/tạo lại logic cho MỘT trường cụ thể dựa trên toàn bộ văn bản luật.
-    """
-    helpers_list = registry.get_llm_metadata()
+    """Dịch lại logic lẻ trường (CodeAgent - Accuracy focus)."""
+    accumulated_plan = {}
+    builder_tool = PlanBuilderTool(accumulated_plan)
+    agent = CodeAgent(tools=[builder_tool], model=model, verbosity_level=1, additional_authorized_imports=[], max_steps=3)
     
-    system_prompt = (
-        "Bạn là một Chuyên gia Logic học và Kỹ sư Kiểm thử Dữ liệu.\n"
-        f"Nhiệm vụ: Phân tích quy tắc văn bản và chỉ trích xuất các hàm kiểm tra cho trường '{field_name}'.\n"
-        "\n"
-        "=== QUY TẮC QUAN TRỌNG ===\n"
-        "1. CHỈ trả về danh sách các hàm helper (JSON array) cho trường được yêu cầu.\n"
-        "2. TUYỆT ĐỐI KHÔNG sử dụng if, else.\n"
-        "3. TUYỆT ĐỐI KHÔNG dùng toán tử so sánh (<, >, ==, !=, <=, >=). Thay vào đó, hãy sử dụng các hàm helper tương ứng như check_logic_greater, check_logic_equal, check_logic_smaller.\n"
-        "4. CHỈ sử dụng các hàm helper được cung cấp trong danh sách.\n"
-        "5. Tên trường không được bỏ trong dấu ngoặc, phải giữ nguyên y như trong văn bản quy tắc."
-        "6. Giá trị của trường là số thì không cần bỏ trong ngoặc, nhưng nếu là chuỗi thì phải bỏ trong dấu ngoặc đơn.\n"
-        "\n"
-        "=== HƯỚNG DẪN LOGIC ===\n"
-        "- Hàm Validation (vd: check_numeric, check_range): Hệ thống tự động truyền giá trị của trường hiện tại vào tham số đầu tiên. Bạn chỉ cần điền các tham số còn lại.\n"
-        "- Hàm Logic/Pure (vd: calculate_age, check_logic_greater, is_empty): Không tự động nhận giá trị trường. Bạn phải truyền tham số rõ ràng.\n"
-        "- Điều kiện (check_if): Dùng 'check_if(điều_kiện, kết_quả_nếu_đúng)'. \n"
-        "  Ví dụ: \"check_if(is_empty(Chữ ký), check_not_empty)\"\n"
-        "  Ví dụ khoảng cách ngày (chưa có thứ tự trước sau): \"check_date_min_distance(Ngày ký, 12, 'months')\"\n"
-        "\n"
-        "Yêu cầu: Output JSON ARRAY trong thẻ <output>."
-    )
+    helper_metadata = get_helper_definitions()
+    task = f"""Tạo quy tắc cho trường '{field_name}' bằng add_rule_plan.
+{SYNTAX_SPECIFICATION}
+
+HELPERS:
+{helper_metadata}
+
+RULES:
+{full_rules_text}"""
     
-    user_prompt = f"""
-<helper_functions>
-{helpers_list}
-</helper_functions>
-
-<full_rules_text>
-{full_rules_text}
-</full_rules_text>
-
-Trường cần tạo logic: {field_name}
-
-Yêu cầu:
-Dựa trên full_rules_text, hãy trích xuất và tạo các hàm kiểm tra cho trường '{field_name}'.
-Lưu ý: Nếu quy tắc của trường này phụ thuộc vào giá trị của một trường khác, hãy sử dụng Tên Trường đó làm tham số trong hàm logic.
-
-Ví dụ:
-Rules: "Nếu Tuổi dưới 18 thì phải có Người giám hộ"
-Field: "Người giám hộ"
-Output: ["check_if(check_logic_smaller(Tuổi, 18), check_not_empty)"]
-
-Hãy trả về danh sách hàm (JSON array) trong thẻ <output>:"""
-
     try:
-        response = await client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.0
-        )
-        content = clean_json_content(response.choices[0].message.content.strip())
-        if not content: return None
-        return json.loads(content)
+        await asyncio.to_thread(lambda: agent.run(task, reset=True))
+        return accumulated_plan.get(field_name)
     except Exception as e:
-        logger.error(f"Lỗi regenerate logic cho trường {field_name}: {e}")
+        logger.error(f"Lỗi CodeAgent (single_field): {e}")
         return None
 
 async def extract_data_from_text(text: str, fields: List[str]) -> Optional[Dict[str, str]]:
-    """
-    Nhiệm vụ: Chỉ trích xuất giá trị cho các trường dữ liệu từ văn bản thô.
-    Không chứa logic kiểm tra hay lập kế hoạch.
-    """
-    system_prompt = (
-        "Bạn là một Chuyên gia Trích xuất Dữ liệu Văn bản.\n"
-        "Nhiệm vụ: Đọc văn bản thô và tìm giá trị tương ứng cho danh sách các trường được yêu cầu.\n"
-        "QUY TẮC:\n"
-        "1. Trả về JSON object: {\"tên_trường\": \"giá_trị\"}.\n"
-        "2. Nếu không tìm thấy thông tin cho một trường, hãy để giá trị là \"\".\n"
-        "3. Giữ nguyên định dạng gốc của dữ liệu (ví dụ: ngày tháng, số tiền).\n"
-        "4. CHỈ trả về JSON trong thẻ <output>."
-    )
-    
-    user_prompt = f"""
-<fields_to_find>
-{', '.join(fields)}
-</fields_to_find>
-
-<document_text>
-{text}
-</document_text>
-
-Trích xuất dữ liệu và trả về JSON trong thẻ <output>:"""
-
+    """Trích xuất dữ liệu (CodeAgent - High Precision)."""
+    storage = {}
+    tool = ExtractionTool(storage)
+    agent = CodeAgent(tools=[tool], model=model, verbosity_level=1, max_steps=10)
+    task = f"Trích xuất {fields} từ văn bản bằng record_extracted_dict.\n\nVĂN BẢN:\n{text}"
     try:
-        response = await client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.0
-        )
-        content = response.choices[0].message.content.strip()
-        cleaned = clean_json_content(content)
-        if not cleaned: return None
-        return json.loads(cleaned)
+        await asyncio.to_thread(lambda: agent.run(task, reset=True))
+        return storage
     except Exception as e:
-        logger.error(f"Lỗi trích xuất dữ liệu: {e}")
+        logger.error(f"Lỗi CodeAgent (extract): {e}")
         return None
 
 async def map_data_to_plan(required_fields: List[str], data_keys: List[str]) -> Optional[Dict[str, str]]:
-    """
-    Nhiệm vụ: Ánh xạ danh sách 'trường yêu cầu' (từ luật) sang 'trường dữ liệu thực tế' (từ file).
-    Trả về JSON object: {"trường_yêu_cầu": "trường_thực_tế"}.
-    """
-    system_prompt = (
-        "Bạn là một Chuyên gia Ánh xạ Dữ liệu.\n"
-        "Nhiệm vụ: Ánh xạ danh sách 'trường yêu cầu' (từ luật) sang 'trường dữ liệu thực tế' (từ file).\n"
-        "QUY TẮC:\n"
-        "1. Trả về JSON object: {\"trường_yêu_cầu\": \"trường_thực_tế\"}.\n"
-        "2. Nếu không tìm thấy trường tương ứng trực tiếp, bạn có thể sử dụng các hàm toán học để tính toán giá trị.\n"
-        "3. CÁC HÀM TOÁN HỌC HỖ TRỢ: add(a, b), subtract(a, b), multiply(a, b), divide(a, b).\n"
-        "   Ví dụ: \"Lãi suất\": \"divide(Tiền lời, Tiền gửi)\"\n"
-        "4. Nếu không tìm thấy trường tương ứng rõ ràng và không thể tính toán, hãy để giá trị là \"\".\n"
-        "5. CHỈ trả về JSON trong thẻ <output>."
-    )
-    
-    user_prompt = f"""
-<required_fields>
-{', '.join(required_fields)}
-</required_fields>
-
-<available_data_keys>
-{', '.join(data_keys)}
-</available_data_keys>
-
-Hãy thực hiện ánh xạ và trả về JSON trong thẻ <output>:"""
-
+    """Ánh xạ dữ liệu (CodeAgent - High Precision)."""
+    mapping = {}
+    tool = MappingTool(mapping)
+    agent = CodeAgent(tools=[tool], model=model, verbosity_level=1, max_steps=10)
+    task = f"Ánh xạ {required_fields} sang các trường thực tế {data_keys} bằng record_mapping_dict."
     try:
-        response = await client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.0
-        )
-        content = response.choices[0].message.content.strip()
-        cleaned = clean_json_content(content)
-        if not cleaned: return None
-        return json.loads(cleaned)
+        await asyncio.to_thread(lambda: agent.run(task, reset=True))
+        return mapping
     except Exception as e:
-        logger.error(f"Lỗi ánh xạ dữ liệu: {e}")
-        return None
-
-async def generate_calculation_logic(target_field: str, data_keys: List[str], instruction: str) -> Optional[str]:
-    """
-    Sử dụng LLM để tạo ra một lời gọi hàm helper nhằm tính toán giá trị cho một trường.
-    Ví dụ: "Tính tuổi từ năm_sinh" -> "calculate_age(năm_sinh)"
-    """
-    helpers_list = registry.get_llm_metadata()
-    
-    system_prompt = (
-        "Bạn là một Chuyên gia Logic Dữ liệu.\n"
-        "Nhiệm vụ: Tạo MỘT lời gọi hàm helper duy nhất để tính toán giá trị cho trường yêu cầu.\n"
-        "QUY TẮC:\n"
-        "1. CHỈ sử dụng các hàm helper được cung cấp.\n"
-        "2. Sử dụng tên trường từ danh sách <available_data_keys>.\n"
-        "3. Output CHỈ là chuỗi lời gọi hàm, không giải thích.\n"
-        "Ví dụ: calculate_age(extract_year(ngay_sinh))\n"
-        "Nếu không thể tạo logic, trả về 'ERROR'."
-    )
-    
-    user_prompt = f"""
-Trường mục tiêu: {target_field}
-Dữ liệu có sẵn: {', '.join(data_keys)}
-Yêu cầu của người dùng: {instruction}
-
-Helper functions:
-{helpers_list}
-
-Logic tính toán:"""
-
-    try:
-        response = await client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.0
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        logger.error(f"Lỗi tạo logic tính toán: {e}")
+        logger.error(f"Lỗi CodeAgent (mapping): {e}")
         return None
 
 async def generate_plan_metadata(execution_plan: Dict[str, List[Any]]) -> Optional[Dict[str, Dict[str, str]]]:
-    """
-    Sử dụng LLM để tạo description và sample data cho từng trường trong Execution Plan.
-    Trả về JSON: {"tên_trường": {"description": "...", "sample_value": "..."}}
-    """
-    helpers_list = registry.get_llm_metadata()
+    """Tạo metadata chi tiết bao gồm mô tả và dữ liệu mẫu (CodeAgent)."""
+    storage = {}
+    tool = MetadataTool(storage)
+    agent = CodeAgent(tools=[tool], model=model, verbosity_level=1, max_steps=10)
     
-    system_prompt = (
-        "Bạn là một Chuyên gia Kỹ thuật và Kiểm thử Dữ liệu.\n"
-        "Nhiệm vụ: Dựa trên Execution Plan (JSON), hãy tạo mô tả (description) bằng tiếng Việt và một giá trị mẫu (sample_value) hợp lệ cho từng trường.\n"
-        "QUY TẮC:\n"
-        "1. Description: Giải thích ngắn gọn các quy tắc đang được áp dụng cho trường đó (ví dụ: 'Kiểm tra tuổi phải trên 18 và là số'). Nếu trường đó không có quy tắc nào ([]), hãy giải thích rằng đây là trường dữ liệu đầu vào cần thiết cho các logic kiểm tra khác.\n"
-        "2. Sample Value: Phải là một giá trị (string) THỎA MÃN tất cả các hàm helper trong list của trường đó (nếu có).\n"
-        "3. Trả về JSON object trong thẻ <output>.\n"
-        "Cấu trúc: {\"tên_trường\": {\"description\": \"...\", \"sample_value\": \"...\"}}"
-    )
+    helper_metadata = get_helper_definitions()
+    task = f"""Tạo metadata cho Execution Plan sau đây bằng record_metadata_dict.
+Đối với MỖI trường trong plan, bạn cần cung cấp:
+1. 'description': Giải thích logic kiểm tra của trường đó bằng tiếng Việt một cách dễ hiểu dựa trên các hàm helper được gọi. Nếu trường đó là biến phụ thuộc (không có quy tắc), hãy ghi 'Trường dữ liệu đầu vào'.
+2. 'sample_value': Một giá trị mẫu hợp lệ thỏa mãn TẤT CẢ các quy tắc của trường đó (nếu có). 
+   - Nếu có check_date_format('%d-%m-%Y'), giá trị phải là '01-01-2024'.
+   - Nếu có check_logic_greater(val, 100), giá trị phải lớn hơn 100.
+   - Tham chiếu logic hàm từ danh sách HELPERS bên dưới.
 
-    user_prompt = f"""
-<helper_metadata>
-{helpers_list}
-</helper_metadata>
+HELPERS REFERENCE:
+{helper_metadata}
 
-<execution_plan>
-{json.dumps(execution_plan, ensure_ascii=False, indent=2)}
-</execution_plan>
-
-Hãy tạo metadata và trả về JSON trong thẻ <output>:"""
-
+PLAN:
+{json.dumps(execution_plan, ensure_ascii=False)}"""
+    
     try:
-        response = await client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.0
-        )
-        content = response.choices[0].message.content.strip()
-        cleaned = clean_json_content(content)
-        if not cleaned: return None
-        return json.loads(cleaned)
+        await asyncio.to_thread(lambda: agent.run(task, reset=True))
+        return storage
     except Exception as e:
-        logger.error(f"Lỗi tạo metadata cho plan: {e}")
+        logger.error(f"Lỗi CodeAgent (metadata): {e}")
+        return None
+
+async def generate_calculation_logic(target_field: str, data_keys: List[str], instruction: str) -> Optional[str]:
+    """Tạo logic tính toán sử dụng Agent (Agent-Native)."""
+    agent = CodeAgent(tools=[], model=model, verbosity_level=1)
+    helper_metadata = get_helper_definitions()
+    task = f"Tạo lời gọi hàm helper để tính toán trường '{target_field}'.\nHD: {instruction}\nKEYS: {data_keys}\nHELPERS:\n{helper_metadata}\nChỉ trả về chuỗi gọi hàm."
+    try:
+        res = await asyncio.to_thread(lambda: agent.run(task, reset=True))
+        return str(res).strip() if res else None
+    except Exception as e:
+        logger.error(f"Lỗi CodeAgent (calculation): {e}")
         return None
