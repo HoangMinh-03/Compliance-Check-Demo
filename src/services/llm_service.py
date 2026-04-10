@@ -110,7 +110,7 @@ async def translate_rules(rules_text: str) -> Optional[Dict[str, List[Any]]]:
     accumulated_plan = {}
     builder_tool = PlanBuilderTool(accumulated_plan)
     # CodeAgent tự kiểm tra mã nguồn giúp tạo logic lồng nhau chuẩn xác
-    agent = CodeAgent(tools=[builder_tool], model=model, verbosity_level=1, additional_authorized_imports=[], max_steps=10)
+    agent = CodeAgent(tools=[builder_tool], model=model, verbosity_level=-1, additional_authorized_imports=[], max_steps=10)
     
     helper_metadata = get_helper_definitions()
     task = f"""Dịch RULES thành Execution Plan. 
@@ -136,7 +136,7 @@ RULES:
 async def complete_plan_dependencies(execution_plan: Dict[str, List[Any]]) -> Dict[str, List[Any]]:
     """Giai đoạn 2: Tự động tìm và thêm các biến phụ thuộc ẩn trong công thức."""
     builder_tool = PlanBuilderTool(execution_plan)
-    agent = CodeAgent(tools=[builder_tool], model=model, verbosity_level=1, max_steps=5)
+    agent = CodeAgent(tools=[builder_tool], model=model, verbosity_level=-1, max_steps=5)
     
     helper_metadata = get_helper_definitions()
     task = f"""Duyệt qua Execution Plan hiện tại và tìm các 'biến phụ thuộc' bị thiếu.
@@ -164,7 +164,7 @@ async def translate_single_field_logic(field_name: str, full_rules_text: str) ->
     """Dịch lại logic lẻ trường (CodeAgent - Accuracy focus)."""
     accumulated_plan = {}
     builder_tool = PlanBuilderTool(accumulated_plan)
-    agent = CodeAgent(tools=[builder_tool], model=model, verbosity_level=1, additional_authorized_imports=[], max_steps=3)
+    agent = CodeAgent(tools=[builder_tool], model=model, verbosity_level=-1, additional_authorized_imports=[], max_steps=3)
     
     helper_metadata = get_helper_definitions()
     task = f"""Tạo quy tắc cho trường '{field_name}' bằng add_rule_plan.
@@ -187,7 +187,7 @@ async def extract_data_from_text(text: str, fields: List[str]) -> Optional[Dict[
     """Trích xuất dữ liệu (CodeAgent - High Precision)."""
     storage = {}
     tool = ExtractionTool(storage)
-    agent = CodeAgent(tools=[tool], model=model, verbosity_level=1, max_steps=10)
+    agent = CodeAgent(tools=[tool], model=model, verbosity_level=-1, max_steps=10)
     task = f"Trích xuất {fields} từ văn bản bằng record_extracted_dict.\n\nVĂN BẢN:\n{text}"
     try:
         await asyncio.to_thread(lambda: agent.run(task, reset=True))
@@ -200,7 +200,7 @@ async def map_data_to_plan(required_fields: List[str], data_keys: List[str]) -> 
     """Ánh xạ dữ liệu (CodeAgent - High Precision)."""
     mapping = {}
     tool = MappingTool(mapping)
-    agent = CodeAgent(tools=[tool], model=model, verbosity_level=1, max_steps=10)
+    agent = CodeAgent(tools=[tool], model=model, verbosity_level=-1, max_steps=10)
     task = f"Ánh xạ {required_fields} sang các trường thực tế {data_keys} bằng record_mapping_dict."
     try:
         await asyncio.to_thread(lambda: agent.run(task, reset=True))
@@ -213,7 +213,7 @@ async def generate_plan_metadata(execution_plan: Dict[str, List[Any]]) -> Option
     """Tạo metadata chi tiết bao gồm mô tả và dữ liệu mẫu (CodeAgent)."""
     storage = {}
     tool = MetadataTool(storage)
-    agent = CodeAgent(tools=[tool], model=model, verbosity_level=1, max_steps=10)
+    agent = CodeAgent(tools=[tool], model=model, verbosity_level=-1, max_steps=10)
     
     helper_metadata = get_helper_definitions()
     task = f"""Tạo metadata cho Execution Plan sau đây bằng record_metadata_dict.
@@ -239,7 +239,7 @@ PLAN:
 
 async def generate_calculation_logic(target_field: str, data_keys: List[str], instruction: str) -> Optional[str]:
     """Tạo logic tính toán sử dụng Agent (Agent-Native)."""
-    agent = CodeAgent(tools=[], model=model, verbosity_level=1)
+    agent = CodeAgent(tools=[], model=model, verbosity_level=-1)
     helper_metadata = get_helper_definitions()
     task = f"Tạo lời gọi hàm helper để tính toán trường '{target_field}'.\nHD: {instruction}\nKEYS: {data_keys}\nHELPERS:\n{helper_metadata}\nChỉ trả về chuỗi gọi hàm."
     try:

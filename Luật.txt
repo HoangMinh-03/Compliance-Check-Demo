@@ -12,7 +12,7 @@ Ngày hết hạn phải nằm sau Ngày ký và cách ngày ký tối thiếu 1
 
 Trường 'Khách hàng' phải có giá trị là 'Ưu tiên' nếu (Số dư tài khoản > 1 tỷ VNĐ VÀ Tổng chi tiêu tháng > 100 triệu) HOẶC (Đã tham gia hệ thống trên 10 năm).
 
-Nếu là khách hàng 'Ưu tiên': Lãi suất vay tối đa là 8%/năm. Nếu KHÔNG phải khách hàng 'Ưu tiên': Lãi suất vay tối đa là 12%/năm.
+Nếu là khách hàng 'Ưu tiên': Lãi suất vay tối đa là 12.5%/năm. Nếu KHÔNG phải khách hàng 'Ưu tiên': Lãi suất vay tối đa là 8%/năm.
 
 Đối với mọi trường hợp có Lãi suất vay thực tế > 10%, bắt buộc phải có trường 'Chu_ky_Giam_doc' và không được để trống.
 

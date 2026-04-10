@@ -7,3 +7,6 @@ uvicorn
 jinja2
 python-multipart
 python-docx
+smolagents
+mcp[cli]
+pydantic>=2.0.0
